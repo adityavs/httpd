@@ -253,7 +253,7 @@ static const char *authz_require_alias_section(cmd_parms *cmd, void *mconfig,
     const char *endp = ap_strrchr_c(args, '>');
     char *provider_name;
     char *provider_alias;
-    char *provider_args;
+    char *provider_args, *extra_args;
     ap_conf_vector_t *new_authz_config;
     int old_overrides = cmd->override;
     const char *errmsg;
@@ -279,10 +279,21 @@ static const char *authz_require_alias_section(cmd_parms *cmd, void *mconfig,
     provider_name = ap_getword_conf(cmd->pool, &args);
     provider_alias = ap_getword_conf(cmd->pool, &args);
     provider_args = ap_getword_conf(cmd->pool, &args);
+    extra_args = ap_getword_conf(cmd->pool, &args);
 
     if (!provider_name[0] || !provider_alias[0]) {
         return apr_pstrcat(cmd->pool, cmd->cmd->name,
                            "> directive requires additional arguments", NULL);
+    }
+    
+    /* We only handle one "Require-Parameters" parameter.  If several parameters
+       are needed, they must be enclosed between quotes */
+    if (extra_args && *extra_args) {
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, cmd->server, APLOGNO(10142)
+                     "When several arguments (%s %s...) are passed to a %s directive, "
+                     "they must be enclosed in quotation marks.  Otherwise, only the "
+                     "first one is taken into account",
+                     provider_args, extra_args, cmd->cmd->name);
     }
 
     new_authz_config = ap_create_per_dir_config(cmd->pool);
@@ -976,7 +987,7 @@ static const char *all_parse_config(cmd_parms *cmd, const char *require_line,
     /*
      * If the argument to the 'all' provider is 'granted' then just let
      * everybody in. This would be equivalent to the previous syntax of
-     * 'allow from all'. If the argument is 'denied' we reject everbody,
+     * 'allow from all'. If the argument is 'denied' we reject everybody,
      * which is equivalent to 'deny from all'.
      */
     if (strcasecmp(require_line, "granted") == 0) {

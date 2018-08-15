@@ -16,9 +16,9 @@
 
 <link href="../images/favicon.ico" rel="shortcut icon" /></head>
 <body id="module-index"><div id="page-header">
-<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa de este sitio web</a></p>
+<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p>
 <p class="apache">Versión 2.5 del Servidor HTTP Apache</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">Servidor HTTP</a> &gt; <a href="http://httpd.apache.org/docs/">Documentación</a> &gt; <a href="../">Versión 2.5</a></div><div id="page-content"><div id="preamble"><h1>Índice de Módulos</h1>
@@ -32,38 +32,35 @@
 <a href="../tr/mod/" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a> |
 <a href="../zh-cn/mod/" hreflang="zh-cn" rel="alternate" title="Simplified Chinese">&nbsp;zh-cn&nbsp;</a></p>
 </div>
-<div class="outofdate">Esta traducción podría estar
-            obsoleta. Consulte la versión en inglés de la
-            documentación para comprobar si se han producido cambios
-            recientemente.</div>
 
     <p>
-      Abajo se muestra una lista con todos los módulos que forman
+      Debajo se muestra una lista con todos los módulos que forman
       parte de la distribución de Apache.  Consulte también la lista
-      alfabética completa de <a href="directives.html">las
+      alfabética completa de <a href="directives.html">
       directivas de Apache</a>.
     </p>
   </div>
 <div id="quickview"><ul id="toc">
 <li><img alt="" src="../images/down.gif" /> <a href="#core">Funcionalidad Básica y Módulos
-            de MultiProcesamiento</a></li><li><img alt="" src="../images/down.gif" /> <a href="#other">Otros Módulos</a></li></ul><h3>Consulte también</h3>
+            de MultiProcesamiento (MPM)</a></li><li><img alt="" src="../images/down.gif" /> <a href="#other">Otros Módulos</a></li></ul><h3>Consulte también</h3>
 <ul class="seealso">
-<li><a href="../mpm.html">Módulos de MultiProcesamiento
+<li><a href="../mpm.html">Módulos de Multi-Procesamiento
   (MPMs)</a>
   </li>
-<li><a href="quickreference.html">Guía Rápida de Referencia de
-  Directivas</a>
+<li><a href="quickreference.html">Guía Rápida de Referencia de 
+  	Directivas</a>
   </li>
 </ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section"><h2><a id="core" name="core">Funcionalidad Básica y Módulos
-            de MultiProcesamiento</a></h2>
+            de MultiProcesamiento (MPM)</a></h2>
 <dl>
 <dt><a href="core.html">core</a></dt><dd>Funcionalides básicas del Servidor HTTP Apache que siempre están presentes.</dd>
 <dt><a href="mpm_common.html">mpm_common</a></dt><dd class="separate">A collection of directives that are implemented by
 more than one multi-processing module (MPM)</dd>
-<dt><a href="event.html">event</a></dt><dd>A variant of the <code class="module"><a href="../mod/worker.html">worker</a></code> MPM with the goal
-of consuming threads only for connections with active processing</dd>
+<dt><a href="event.html">event</a></dt><dd>Una variante del MPM <code class="module"><a href="../mod/worker.html">worker</a></code> con el 
+objetivo de consumir hilos sólo para conexiones con procesamiento 
+activo</dd>
 <dt><a href="mpm_netware.html">mpm_netware</a></dt><dd>Multi-Processing Module implementing an exclusively threaded web
     server optimized for Novell NetWare</dd>
 <dt><a href="mpmt_os2.html">mpmt_os2</a></dt><dd>Hybrid multi-process, multi-threaded MPM for OS/2</dd>
@@ -75,16 +72,15 @@ of consuming threads only for connections with active processing</dd>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section"><h2><a id="other" name="other">Otros Módulos</a></h2>
 <p class="letters"><a href="#A">&nbsp;A&nbsp;</a> | <a href="#B">&nbsp;B&nbsp;</a> | <a href="#C">&nbsp;C&nbsp;</a> | <a href="#D">&nbsp;D&nbsp;</a> | <a href="#E">&nbsp;E&nbsp;</a> | <a href="#F">&nbsp;F&nbsp;</a> | <a href="#H">&nbsp;H&nbsp;</a> | <a href="#I">&nbsp;I&nbsp;</a> | <a href="#J">&nbsp;J&nbsp;</a> | <a href="#L">&nbsp;L&nbsp;</a> | <a href="#M">&nbsp;M&nbsp;</a> | <a href="#N">&nbsp;N&nbsp;</a> | <a href="#P">&nbsp;P&nbsp;</a> | <a href="#R">&nbsp;R&nbsp;</a> | <a href="#S">&nbsp;S&nbsp;</a> | <a href="#U">&nbsp;U&nbsp;</a> | <a href="#V">&nbsp;V&nbsp;</a> | <a href="#W">&nbsp;W&nbsp;</a> | <a href="#X">&nbsp;X&nbsp;</a></p>
-<dl><dt><a href="mod_access_compat.html" id="A" name="A">mod_access_compat</a></dt><dd>Group authorizations based on host (name or IP
-address)</dd>
-<dt><a href="mod_actions.html">mod_actions</a></dt><dd>Execute CGI scripts based on media type or request method.</dd>
-<dt><a href="mod_alias.html">mod_alias</a></dt><dd>Provides for mapping different parts of the host
-    filesystem in the document tree and for URL redirection</dd>
-<dt><a href="mod_allowhandlers.html">mod_allowhandlers</a></dt><dd>Easily restrict what HTTP handlers can be used on the server</dd>
-<dt><a href="mod_allowmethods.html">mod_allowmethods</a></dt><dd>Easily restrict what HTTP methods can be used on the server</dd>
-<dt><a href="mod_asis.html">mod_asis</a></dt><dd>Sends files that contain their own
-HTTP headers</dd>
-<dt><a href="mod_auth_basic.html">mod_auth_basic</a></dt><dd>Basic HTTP authentication</dd>
+<dl><dt><a href="mod_access_compat.html" id="A" name="A">mod_access_compat</a></dt><dd>Autorizaciones de grupo basadas en el host (nombre o dirección IP)</dd>
+<dt><a href="mod_actions.html">mod_actions</a></dt><dd>Ejecuta scripts CGI basándose en el tipo de medio o método de la petición.</dd>
+<dt><a href="mod_alias.html">mod_alias</a></dt><dd>Facilita el mapeo a diferentes partes del sistema de ficheros del host en el árbol de documentos y la redirección de URLs
+</dd>
+<dt><a href="mod_allowhandlers.html">mod_allowhandlers</a></dt><dd>Restringir fácilmente qué handlers HTTP pueden ser usados en el servidor</dd>
+<dt><a href="mod_allowmethods.html">mod_allowmethods</a></dt><dd>Restringe fácilmente qué métodos HTTP pueden ser usados en el servidor</dd>
+<dt><a href="mod_asis.html">mod_asis</a></dt><dd>Envía ficheros que contienen sus propias 
+  cabeceras HTTP</dd>
+<dt><a href="mod_auth_basic.html">mod_auth_basic</a></dt><dd>Autenticación HTTP Básica</dd>
 <dt><a href="mod_auth_digest.html">mod_auth_digest</a></dt><dd>User authentication using MD5
     Digest Authentication</dd>
 <dt><a href="mod_auth_form.html">mod_auth_form</a></dt><dd>Form authentication</dd>
@@ -111,7 +107,9 @@ address)</dd>
 <dt><a href="mod_autoindex.html">mod_autoindex</a></dt><dd>Generates directory indexes,
     automatically, similar to the Unix <code>ls</code> command or the
     Win32 <code>dir</code> shell command</dd>
-<dt><a href="mod_buffer.html" id="B" name="B">mod_buffer</a></dt><dd>Support for request buffering</dd>
+<dt><a href="mod_brotli.html" id="B" name="B">mod_brotli</a></dt><dd>Compress content via Brotli before it is delivered to the
+client</dd>
+<dt><a href="mod_buffer.html">mod_buffer</a></dt><dd>Support for request buffering</dd>
 <dt><a href="mod_cache.html" id="C" name="C">mod_cache</a></dt><dd>RFC 2616 compliant HTTP caching filter.</dd>
 <dt><a href="mod_cache_disk.html">mod_cache_disk</a></dt><dd>Disk based storage module for the HTTP caching filter.</dd>
 <dt><a href="mod_cache_socache.html">mod_cache_socache</a></dt><dd>Shared object cache (socache) based storage module for the
@@ -121,6 +119,7 @@ HTTP caching filter.</dd>
 <dt><a href="mod_cgid.html">mod_cgid</a></dt><dd>Execution of CGI scripts using an
     external CGI daemon</dd>
 <dt><a href="mod_charset_lite.html">mod_charset_lite</a></dt><dd>Specify character set translation or recoding</dd>
+<dt><a href="mod_crypto.html">mod_crypto</a></dt><dd>Support for symmetrical encryption and decryption</dd>
 <dt><a href="mod_data.html" id="D" name="D">mod_data</a></dt><dd>Convert response body into an RFC2397 data URL</dd>
 <dt><a href="mod_dav.html">mod_dav</a></dt><dd>Distributed Authoring and Versioning
 (<a href="http://www.webdav.org/">WebDAV</a>) functionality</dd>
@@ -146,11 +145,11 @@ delivery to the client</dd>
 <dt><a href="mod_file_cache.html" id="F" name="F">mod_file_cache</a></dt><dd>Caches a static list of files in memory</dd>
 <dt><a href="mod_filter.html">mod_filter</a></dt><dd>Context-sensitive smart filter configuration module</dd>
 <dt><a href="mod_firehose.html">mod_firehose</a></dt><dd>Multiplexes all I/O to a given file or pipe.</dd>
-<dt><a href="mod_h2.html" id="H" name="H">mod_h2</a></dt><dd>Support for the HTTP/2 transport layer</dd>
-<dt><a href="mod_headers.html">mod_headers</a></dt><dd>Customization of HTTP request and response
+<dt><a href="mod_headers.html" id="H" name="H">mod_headers</a></dt><dd>Customization of HTTP request and response
 headers</dd>
 <dt><a href="mod_heartbeat.html">mod_heartbeat</a></dt><dd>Sends messages with server status to frontend proxy</dd>
 <dt><a href="mod_heartmonitor.html">mod_heartmonitor</a></dt><dd>Centralized monitor for mod_heartbeat origin servers</dd>
+<dt><a href="mod_http2.html">mod_http2</a></dt><dd>Support for the HTTP/2 transport layer</dd>
 <dt><a href="mod_ident.html" id="I" name="I">mod_ident</a></dt><dd>RFC 1413 ident lookups</dd>
 <dt><a href="mod_imagemap.html">mod_imagemap</a></dt><dd>Server-side imagemap processing</dd>
 <dt><a href="mod_include.html">mod_include</a></dt><dd>Server-parsed html documents (Server Side Includes)</dd>
@@ -171,6 +170,9 @@ by other LDAP modules</dd>
 <dt><a href="mod_lua.html">mod_lua</a></dt><dd>Provides Lua hooks into various portions of the httpd
 request processing</dd>
 <dt><a href="mod_macro.html" id="M" name="M">mod_macro</a></dt><dd>Provides macros within apache httpd runtime configuration files</dd>
+<dt><a href="mod_md.html">mod_md</a></dt><dd>Managing domains across virtual hosts, certificate provisioning 
+        via the ACME protocol
+    </dd>
 <dt><a href="mod_mime.html">mod_mime</a></dt><dd>Associates the requested filename's extensions
     with the file's behavior (handlers and filters)
     and content (mime-type, language, character set and
@@ -196,11 +198,16 @@ under different user IDs.</dd>
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
 <dt><a href="mod_proxy_ftp.html">mod_proxy_ftp</a></dt><dd>FTP support module for
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
+<dt><a href="mod_proxy_hcheck.html">mod_proxy_hcheck</a></dt><dd>Dynamic health check of Balancer members (workers) for
+<code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
 <dt><a href="mod_proxy_html.html">mod_proxy_html</a></dt><dd>Rewrite HTML links in to ensure they are addressable
 from Clients' networks in a proxy context.</dd>
 <dt><a href="mod_proxy_http.html">mod_proxy_http</a></dt><dd>HTTP support module for
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
+<dt><a href="mod_proxy_http2.html">mod_proxy_http2</a></dt><dd>HTTP/2 support module for
+<code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
 <dt><a href="mod_proxy_scgi.html">mod_proxy_scgi</a></dt><dd>SCGI gateway module for <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
+<dt><a href="mod_proxy_uwsgi.html">mod_proxy_uwsgi</a></dt><dd>UWSGI gateway module for <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
 <dt><a href="mod_proxy_wstunnel.html">mod_proxy_wstunnel</a></dt><dd>Websockets support module for
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></dd>
 <dt><a href="mod_ratelimit.html" id="R" name="R">mod_ratelimit</a></dt><dd>Bandwidth Rate Limiting for Clients</dd>
@@ -228,16 +235,18 @@ modules into the server at start-up or restart time</dd>
 <dt><a href="mod_socache_dbm.html">mod_socache_dbm</a></dt><dd>DBM based shared object cache provider.</dd>
 <dt><a href="mod_socache_dc.html">mod_socache_dc</a></dt><dd>Distcache based shared object cache provider.</dd>
 <dt><a href="mod_socache_memcache.html">mod_socache_memcache</a></dt><dd>Memcache based shared object cache provider.</dd>
+<dt><a href="mod_socache_redis.html">mod_socache_redis</a></dt><dd>Redis based shared object cache provider.</dd>
 <dt><a href="mod_socache_shmcb.html">mod_socache_shmcb</a></dt><dd>shmcb based shared object cache provider.</dd>
 <dt><a href="mod_speling.html">mod_speling</a></dt><dd>Attempts to correct mistaken URLs by ignoring
 capitalization, or attempting to correct various minor
 misspellings.</dd>
-<dt><a href="mod_ssl.html">mod_ssl</a></dt><dd>Strong cryptography using the Secure Sockets
-Layer (SSL) and Transport Layer Security (TLS) protocols</dd>
+<dt><a href="mod_ssl.html">mod_ssl</a></dt><dd>Criptografía fuerte usando una Capa de Sockets Seguros (Secure 
+  Sockets Layer SSL) y protocolos de Seguridad de la Capa de Transporte 
+  (Transport Layer Security TLS)</dd>
 <dt><a href="mod_ssl_ct.html">mod_ssl_ct</a></dt><dd>Implementation of Certificate Transparency (RFC 6962)
 </dd>
-<dt><a href="mod_status.html">mod_status</a></dt><dd>Provides information on server activity and
-performance</dd>
+<dt><a href="mod_status.html">mod_status</a></dt><dd>Provee información de la actividad y rendimiento del 
+  servidor</dd>
 <dt><a href="mod_substitute.html">mod_substitute</a></dt><dd>Perform search and replace operations on response bodies</dd>
 <dt><a href="mod_suexec.html">mod_suexec</a></dt><dd>Allows CGI scripts to run as a specified user
 and Group</dd>
@@ -268,8 +277,8 @@ filter modules</dd>
 <a href="../tr/mod/" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a> |
 <a href="../zh-cn/mod/" hreflang="zh-cn" rel="alternate" title="Simplified Chinese">&nbsp;zh-cn&nbsp;</a></p>
 </div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licencia bajo los términos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa de este sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licencia bajo los términos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="../glossary.html">Glosario</a> | <a href="../sitemap.html">Mapa del sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

@@ -49,6 +49,10 @@ module AP_MODULE_DECLARE_DATA macro_module;
 
 /********************************************************** MACRO MANAGEMENT */
 
+/* Global warning modifiers */
+int ignore_empty = FALSE;             /* no warning about empty argument */
+int ignore_bad_nesting = FALSE;       /* no warning about bad nesting */
+
 /*
   this is a macro: name, arguments, contents, location.
 */
@@ -58,6 +62,8 @@ typedef struct
     apr_array_header_t *arguments; /* of char*, macro parameter names */
     apr_array_header_t *contents;  /* of char*, macro body */
     char *location;                /* of macro definition, for error messages */
+    int ignore_empty;             /* no warning about empty argument */
+    int ignore_bad_nesting;       /* no warning about bad nesting */
 } ap_macro_t;
 
 /* configuration tokens.
@@ -67,7 +73,11 @@ typedef struct
 #define USE_MACRO   "Use"
 #define UNDEF_MACRO "UndefMacro"
 
-/*
+#define IGNORE_EMPTY_MACRO_FLAG             "/IgnoreEmptyArgs"
+#define IGNORE_BAD_NESTING_MACRO_FLAG       "/IgnoreBadNesting"
+#define IGNORE_EMPTY_MACRO_DIRECTIVE        "MacroIgnoreEmptyArgs"
+#define IGNORE_BAD_NESTING_MACRO_DIRECTIVE  "MacroIgnoreBadNesting"
+ /*
   Macros are kept globally...
   They are not per-server or per-directory entities.
 
@@ -115,7 +125,7 @@ static void warn_if_non_blank(const char * what,
         if (*p == '#')
             break;
         if (*p != ' ' && *p != '\t') {
-            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL,
+            ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, APLOGNO(02989)
                          "%s on line %d of %s: %s",
                          what, cfg->line_number, cfg->name, ptr);
             break;
@@ -135,7 +145,8 @@ static char *get_lines_till_end_token(apr_pool_t * pool,
                                       const char *end_token,
                                       const char *begin_token,
                                       const char *where,
-                                      apr_array_header_t ** plines)
+                                      apr_array_header_t ** plines,
+                                      int ignore_nesting)
 {
     apr_array_header_t *lines = apr_array_make(pool, 1, sizeof(char *));
     char line[MAX_STRING_LEN];  /* sorry, but this is expected by getline:-( */
@@ -153,7 +164,7 @@ static char *get_lines_till_end_token(apr_pool_t * pool,
             /* detect nesting... */
             if (!strncmp(first, "</", 2)) {
                 any_nesting--;
-                if (any_nesting < 0) {
+                if (!ignore_nesting && (any_nesting < 0)) {
                     ap_log_error(APLOG_MARK, APLOG_WARNING,
                                  0, NULL, APLOGNO(02793)
                                  "bad (negative) nesting on line %d of %s",
@@ -180,7 +191,7 @@ static char *get_lines_till_end_token(apr_pool_t * pool,
 
                 macro_nesting--;
                 if (!macro_nesting) {
-                    if (any_nesting) {
+                    if (!ignore_nesting && any_nesting) {
                         ap_log_error(APLOG_MARK,
                                      APLOG_WARNING, 0, NULL, APLOGNO(02795)
                                      "bad cumulated nesting (%+d) in %s",
@@ -254,6 +265,13 @@ static const char *check_macro_arguments(apr_pool_t * pool,
                          macro->name, macro->location,
                          tab[i], i + 1, ARG_PREFIX);
         }
+
+		if ((tab[i][0] == '$') && (tab[i][1] == '{')) {
+			ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, APLOGNO(03484)
+				"macro '%s' (%s) "
+				"argument name '%s' (#%d) clashes with 'Define' syntax '${...}', better use '$(...)'.",
+				macro->name, macro->location, tab[i], i + 1);
+		}
 
         for (j = i + 1; j < nelts; j++) {
             size_t ltabj = strlen(tab[j]);
@@ -377,7 +395,7 @@ static char *substitute(char *buf,
 }
 
 /*
-  find first occurence of args in buf.
+  find first occurrence of args in buf.
   in case of conflict, the LONGEST argument is kept. (could be the FIRST?).
   returns the pointer and the whichone found, or NULL.
 */
@@ -464,7 +482,7 @@ static const char *process_content(apr_pool_t * pool,
     /* for each line of the macro body */
     for (i = 0; i < contents->nelts; i++) {
         const char *errmsg;
-        /* copy the line and subtitute macro parameters */
+        /* copy the line and substitute macro parameters */
         strncpy(line, ((char **) contents->elts)[i], MAX_STRING_LEN - 1);
         errmsg = substitute_macro_args(line, MAX_STRING_LEN,
                                        macro, replacements, used);
@@ -693,11 +711,17 @@ static const char *macro_section(cmd_parms * cmd,
     debug(fprintf(stderr, "macro_section: arg='%s'\n", arg));
 
     /* lazy initialization */
-    if (ap_macros == NULL)
-        ap_macros = apr_hash_make(cmd->temp_pool);
-    ap_assert(ap_macros != NULL);
-
-    pool = apr_hash_pool_get(ap_macros);
+    if (ap_macros == NULL) {
+        pool = cmd->pool;
+        ap_macros = apr_hash_make(pool);
+        ap_assert(ap_macros != NULL);
+        apr_pool_cleanup_register(pool, &ap_macros,
+                                  ap_pool_cleanup_set_null,
+                                  apr_pool_cleanup_null);
+    }
+    else {
+        pool = apr_hash_pool_get(ap_macros);
+    }
 
     endp = (char *) ap_strrchr_c(arg, '>');
 
@@ -757,7 +781,25 @@ static const char *macro_section(cmd_parms * cmd,
                      where, ARG_PREFIX);
     }
 
-    /* get macro parameters */
+	/* get/remove macro modifiers from parameters */
+#define CHECK_MACRO_FLAG(arg_, flag_str, flag_val)  if (!strncasecmp(arg_, flag_str, strlen(flag_str))) { flag_val = TRUE; arg_ += strlen(flag_str); if (!*arg) break;}
+	while (*arg == '/') {
+		CHECK_MACRO_FLAG(arg, IGNORE_EMPTY_MACRO_FLAG, macro->ignore_empty);
+		CHECK_MACRO_FLAG(arg, IGNORE_BAD_NESTING_MACRO_FLAG, macro->ignore_bad_nesting);
+		if (*arg != ' ') {
+			char *c = ap_strchr((char *)arg, ' ');
+			if (c) *c = '\0';
+			ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL, APLOGNO(03483)
+				"%s: unknown flag '%s'", where, arg);
+			if (c) {
+				*c = ' ';
+				arg = c;
+			}
+		}
+		arg++;
+	}
+
+	/* get macro parameters */
     macro->arguments = get_arguments(pool, arg);
 
     errmsg = check_macro_arguments(cmd->temp_pool, macro);
@@ -768,7 +810,7 @@ static const char *macro_section(cmd_parms * cmd,
 
     errmsg = get_lines_till_end_token(pool, cmd->config_file,
                                       END_MACRO, BEGIN_MACRO,
-                                      where, &macro->contents);
+                                      where, &macro->contents, ignore_bad_nesting || macro->ignore_bad_nesting);
 
     if (errmsg) {
         return apr_psprintf(cmd->temp_pool,
@@ -854,7 +896,8 @@ static const char *use_macro(cmd_parms * cmd, void *dummy, const char *arg)
                          cmd->config_file->line_number,
                          cmd->config_file->name);
 
-    check_macro_use_arguments(where, replacements);
+    if (!ignore_empty && !macro->ignore_empty)
+		check_macro_use_arguments(where, replacements);
 
     errmsg = process_content(cmd->temp_pool, macro, replacements,
                              NULL, &contents);
@@ -905,10 +948,16 @@ static const char *undef_macro(cmd_parms * cmd, void *dummy, const char *arg)
     return NULL;
 }
 
-static int macro_pre_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
+static const char *macro_ignore_empty(cmd_parms * cmd, void *dummy)
 {
-    ap_macros = NULL;
-    return OK;
+	ignore_empty = TRUE;
+	return NULL;
+}
+
+static const char *macro_ignore_bad_nesting(cmd_parms * cmd, void *dummy)
+{
+	ignore_bad_nesting = TRUE;
+	return NULL;
 }
 
 /************************************************************* EXPORT MODULE */
@@ -916,7 +965,7 @@ static int macro_pre_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *pte
 /*
   macro module commands.
   configuration file macro stuff
-  they are processed immediatly when found, hence the EXEC_ON_READ.
+  they are processed immediately when found, hence the EXEC_ON_READ.
 */
 static const command_rec macro_cmds[] = {
     AP_INIT_RAW_ARGS(BEGIN_MACRO, macro_section, NULL, EXEC_ON_READ | OR_ALL,
@@ -925,14 +974,13 @@ static const command_rec macro_cmds[] = {
                      "Use of a macro."),
     AP_INIT_TAKE1(UNDEF_MACRO, undef_macro, NULL, EXEC_ON_READ | OR_ALL,
                   "Remove a macro definition."),
+	AP_INIT_NO_ARGS(IGNORE_EMPTY_MACRO_DIRECTIVE, macro_ignore_empty, NULL, EXEC_ON_READ | OR_ALL,
+                     "Globally ignore warnings about empty arguments."),
+	AP_INIT_NO_ARGS(IGNORE_BAD_NESTING_MACRO_DIRECTIVE, macro_ignore_bad_nesting, NULL, EXEC_ON_READ | OR_ALL,
+                     "Globally ignore warnings about bad nesting."),
 
     {NULL}
 };
-
-static void macro_hooks(apr_pool_t *p)
-{
-    ap_hook_pre_config(macro_pre_config, NULL, NULL, APR_HOOK_MIDDLE);
-}
 
 /*
   Module hooks are request-oriented thus it does not suit configuration
@@ -951,5 +999,5 @@ AP_DECLARE_MODULE(macro) = {
         NULL,                   /* create per-server config structure */
         NULL,                   /* merge per-server config structures */
         macro_cmds,             /* configuration commands */
-        macro_hooks             /* register hooks */
+        NULL                    /* register hooks */
 };

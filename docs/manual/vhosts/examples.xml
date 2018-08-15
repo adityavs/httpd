@@ -33,6 +33,17 @@
     href="ip-based.html">IP-based</a> virtual hosts.
     </p>
 
+    <note><title>Context note</title><p>Virtual hosts must be specified in 
+    global scope.  Third-party distributions of the server may use an
+    alternate initial configuration file or multiple configuration files
+    that all accept directives with global scope.  These distributions may
+    also suggest a convention for specifying virtual hosts in their own individual
+    files included into the global configuration via the
+    <directive module="core">Include</directive> directive. Further details
+    may be provided in a third-party README, such as 
+    /usr/share/doc/apache2/README.Debian.gz on Debian and Ubuntu based 
+    distributions.</p>
+    </note>
 </summary>
 
   <section id="purename"><title>Running several name-based web
@@ -76,8 +87,8 @@ Listen 80
     in the configuration file, it has the highest priority and can be seen
     as the <cite>default</cite> or <cite>primary</cite> server. That means
     that if a request is received that does not match one of the specified
-    <code>ServerName</code> directives, it will be served by this first
-    <code>VirtualHost</code>.</p>
+    <directive module="core">ServerName</directive> directives, it will be served by this first
+    <directive type="section" module="core">VirtualHost</directive>.</p>
 
     <p>The above configuration is what you will want to use in almost
     all name-based virtual hosting situations. The only thing that this
@@ -157,8 +168,8 @@ DocumentRoot "/www/mainserver"
     (<code>192.168.1.1</code>).</p>
 
     <p>The server can be made to respond to internal and external requests
-    with the same content, with just one <code>VirtualHost</code>
-    section.</p>
+    with the same content, with just one <directive type="section" module="core"
+    >VirtualHost</directive> section.</p>
 
     <highlight language="config">
 &lt;VirtualHost 192.168.1.1 172.20.30.40&gt;
@@ -169,7 +180,7 @@ DocumentRoot "/www/mainserver"
     </highlight>
 
     <p>Now requests from both networks will be served from the same
-    <code>VirtualHost</code>.</p>
+    <directive type="section" module="core">VirtualHost</directive>.</p>
 
     <note>
           <title>Note:</title><p>On the internal

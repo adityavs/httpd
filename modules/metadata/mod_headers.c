@@ -666,13 +666,15 @@ static const char *process_regexp(header_entry *hdr, const char *value,
     return ret;
 }
 
-static int echo_header(echo_do *v, const char *key, const char *val)
+static int echo_header(void *v, const char *key, const char *val)
 {
+    edit_do *ed = v;
+
     /* If the input header (key) matches the regex, echo it intact to
      * r->headers_out.
      */
-    if (!ap_regexec(v->hdr->regex, key, 0, NULL, 0)) {
-        apr_table_add(v->r->headers_out, key, val);
+    if (!ap_regexec(ed->hdr->regex, key, 0, NULL, 0)) {
+        apr_table_add(ed->r->headers_out, key, val);
     }
 
     return 1;
@@ -789,14 +791,16 @@ static int do_headers_fixup(request_rec *r, apr_table_t *headers,
             }
             break;
         case hdr_set:
-            if (!strcasecmp(hdr->header, "Content-Type")) {
+            if (r->headers_in != headers && 
+                !ap_cstr_casecmp(hdr->header, "Content-Type")) {
                  ap_set_content_type(r, process_tags(hdr, r));
             }
             apr_table_setn(headers, hdr->header, process_tags(hdr, r));
             break;
         case hdr_setifempty:
             if (NULL == apr_table_get(headers, hdr->header)) {
-                if (!strcasecmp(hdr->header, "Content-Type")) {
+                if (r->headers_in != headers &&
+                    !ap_cstr_casecmp(hdr->header, "Content-Type")) {
                     ap_set_content_type(r, process_tags(hdr, r));
                 }
                 apr_table_setn(headers, hdr->header, process_tags(hdr, r));
@@ -804,20 +808,23 @@ static int do_headers_fixup(request_rec *r, apr_table_t *headers,
             break;
         case hdr_unset:
             apr_table_unset(headers, hdr->header);
+            if (r->headers_in != headers &&
+                !ap_cstr_casecmp(hdr->header, "Content-Type")) {
+                ap_set_content_type(r, NULL);
+            }
             break;
         case hdr_echo:
             v.r = r;
             v.hdr = hdr;
-            apr_table_do((int (*) (void *, const char *, const char *))
-                         echo_header, (void *) &v, r->headers_in, NULL);
+            apr_table_do(echo_header, &v, r->headers_in, NULL);
             break;
         case hdr_edit:
         case hdr_edit_r:
-            if (!strcasecmp(hdr->header, "Content-Type") && r->content_type) {
+            if (!ap_cstr_casecmp(hdr->header, "Content-Type") && r->content_type) {
                 const char *repl = process_regexp(hdr, r->content_type, r);
                 if (repl == NULL)
                     return 0;
-                ap_set_content_type(r, repl);
+                if (r->headers_in != headers) ap_set_content_type(r, repl);
             }
             if (apr_table_get(headers, hdr->header)) {
                 edit_do ed;

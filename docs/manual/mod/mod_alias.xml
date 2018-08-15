@@ -90,7 +90,7 @@ href="../urlmapping.html">Mapping URLs to the filesystem</a></seealso>
 
     <highlight language="config">
 Alias "/foo/bar" "/baz"
-Alias "/foo"     "/gaq"
+Alias "/foo" "/gaq"
     </highlight>
 
     <p>But if the above two directives were reversed in order, the
@@ -149,7 +149,7 @@ Alias "/image" "/ftp/pub/image"
 Alias "/icons/" "/usr/local/apache/icons/"
     </highlight>
 
-    <p>then the url <code>/icons</code> will not be aliased, as it lacks
+    <p>then the URL <code>/icons</code> will not be aliased, as it lacks
     that trailing /. Likewise, if you omit the slash on the
     <var>URL-path</var> then you must also omit it from the
     <var>file-path</var>.</p>
@@ -183,7 +183,7 @@ Alias "/image" "/ftp/pub/image"
     or <directive type="section" module="core">LocationMatch</directive>
     section the URL-path is omitted, and the file-path is interpreted
     using <a href="../expr.html">expression syntax</a>.<br />
-    This syntax is available in Apache 2.4.13 and later.</p>
+    This syntax is available in Apache 2.4.19 and later.</p>
 
     <highlight language="config">
 &lt;Location "/image"&gt;
@@ -299,7 +299,7 @@ a different URL</description>
 <override>FileInfo</override>
 
 <usage>
-    <p>The Redirect directive maps an old URL into a new one by asking
+    <p>The <directive>Redirect</directive> directive maps an old URL into a new one by asking
     the client to refetch the resource at the new location.</p>
 
     <p>The old <em>URL-path</em> is a case-sensitive (%-decoded) path
@@ -307,13 +307,16 @@ a different URL</description>
 
     <p>The new <em>URL</em> may be either an absolute URL beginning
     with a scheme and hostname, or a URL-path beginning with a slash.
-    In this latter case the scheme and hostname of the current server will
-    be added.</p>
+    In this latter case the scheme and hostname of the current server
+    will be added if you have 
+    <directive module="core">UseCanonicalName</directive> set to on, 
+    otherwise the hostname will be replaced with the requested Host 
+    header.</p>
 
-    <p>Then any request beginning with <em>URL-Path</em> will return a
+    <p>Then any request beginning with <em>URL-path</em> will return a
     redirect request to the client at the location of the target
     <em>URL</em>.  Additional path information beyond the matched
-    <em>URL-Path</em> will be appended to the target URL.</p>
+    <em>URL-path</em> will be appended to the target URL.</p>
 
     <highlight language="config">
 # Redirect to a URL on a different host
@@ -341,10 +344,14 @@ Redirect "/one" "/two"
 
 
     <note><title>Note</title>
-    <p>Redirect directives take precedence over Alias and ScriptAlias
+    <p><directive>Redirect</directive> directives take precedence over <directive
+    module="mod_alias">Alias</directive> and <directive
+    module="mod_alias">ScriptAlias</directive>
     directives, irrespective of their ordering in the configuration
-    file. Redirect directives inside a Location take precedence over
-    Redirect and Alias directives with an URL-path.</p></note>
+    file. <directive>Redirect</directive> directives inside a Location take
+    precedence over <directive>Redirect</directive> and <directive
+    module="mod_alias">Alias</directive> directives with an <var>URL-path</var>.</p>
+    </note>
 
     <p>If no <var>status</var> argument is given, the redirect will
     be "temporary" (HTTP status 302). This indicates to the client
@@ -390,9 +397,9 @@ Redirect 303 "/three" "http://example.com/other"
     <p>If the <directive>Redirect</directive> directive is used within a
     <directive type="section" module="core">Location</directive>
     or <directive type="section" module="core">LocationMatch</directive>
-    section with the URL-path omitted, then the URL parameter will be
-    interpreted using <a href="../expr.html">expression syntax</a>.<br />
-    This syntax is available in Apache 2.4.13 and later.</p>
+    section with the <var>URL-path</var> omitted, then the <var>URL</var> parameter
+    will be interpreted using <a href="../expr.html">expression syntax</a>.<br />
+    This syntax is available in Apache 2.4.19 and later.</p>
 
     <highlight language="config">
 &lt;Location "/one"&gt;
@@ -442,7 +449,6 @@ RedirectMatch "(.*)\.gif$" "http://other.example.com$1.jpg"
     <directive module="mod_alias">RedirectMatch</directive>.
     See <directive module="mod_alias">AliasMatch</directive> for
     details.</p>
-
 
 </usage>
 </directivesynopsis>
@@ -555,7 +561,7 @@ ScriptAlias "/cgi-bin/" "/web/cgi-handler.pl"
     or <directive type="section" module="core">LocationMatch</directive>
     section with the URL-path omitted, then the URL parameter will be
     interpreted using <a href="../expr.html">expression syntax</a>.<br />
-    This syntax is available in Apache 2.4.13 and later.</p>
+    This syntax is available in Apache 2.4.19 and later.</p>
 
     <highlight language="config">
 &lt;Location "/cgi-bin"&gt;

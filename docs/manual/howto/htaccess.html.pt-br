@@ -18,12 +18,13 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Diretrizes</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossário</a> | <a href="../sitemap.html">Mapa do site</a></p>
 <p class="apache">Servidor HTTP Apache Versão 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">Servidor HTTP</a> &gt; <a href="http://httpd.apache.org/docs/">Documentação</a> &gt; <a href="../">Versão 2.5</a> &gt; <a href="./">How-To / Tutoriais</a></div><div id="page-content"><div id="preamble"><h1>Tutorial do Apache: arquivos .htaccess</h1>
 <div class="toplang">
 <p><span>Línguas Disponíveis: </span><a href="../en/howto/htaccess.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="../es/howto/htaccess.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="../fr/howto/htaccess.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/howto/htaccess.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/howto/htaccess.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -43,14 +44,14 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#ssi">Exemplo de Server Side Includes</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#cgi">Exemplo de CGI</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#troubleshoot">Resolvendo Problemas</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comentários</a></li></ul></div>
+</ul><h3>Veja também</h3><ul class="seealso"><li><a href="#comments_section">Comentários</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="related" id="related">Arquivos .htaccess </a></h2>
+<h2><a name="related" id="related">Arquivos .htaccess </a><a title="Permanent link" href="#related" class="permalink">&para;</a></h2>
     <table class="related"><tr><th>Módulos Relacionados</th><th>Diretrizes Relacionadas</th></tr><tr><td><ul><li><code class="module"><a href="../mod/core.html">core</a></code></li><li><code class="module"><a href="../mod/mod_authn_file.html">mod_authn_file</a></code></li><li><code class="module"><a href="../mod/mod_authz_groupfile.html">mod_authz_groupfile</a></code></li><li><code class="module"><a href="../mod/mod_cgi.html">mod_cgi</a></code></li><li><code class="module"><a href="../mod/mod_include.html">mod_include</a></code></li><li><code class="module"><a href="../mod/mod_mime.html">mod_mime</a></code></li></ul></td><td><ul><li><code class="directive"><a href="../mod/core.html#accessfilename">AccessFileName</a></code></li><li><code class="directive"><a href="../mod/core.html#allowoverride">AllowOverride</a></code></li><li><code class="directive"><a href="../mod/core.html#options">Options</a></code></li><li><code class="directive"><a href="../mod/mod_mime.html#addhandler">AddHandler</a></code></li><li><code class="directive"><a href="../mod/core.html#sethandler">SetHandler</a></code></li><li><code class="directive"><a href="../mod/mod_authn_core.html#authtype">AuthType</a></code></li><li><code class="directive"><a href="../mod/mod_authn_core.html#authname">AuthName</a></code></li><li><code class="directive"><a href="../mod/mod_authn_file.html#authuserfile">AuthUserFile</a></code></li><li><code class="directive"><a href="../mod/mod_authz_groupfile.html#authgroupfile">AuthGroupFile</a></code></li><li><code class="directive"><a href="../mod/mod_authz_core.html#require">Require</a></code></li></ul></td></tr></table>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="what" id="what">O que eles são/Como usá-los</a></h2>
+<h2><a name="what" id="what">O que eles são/Como usá-los</a><a title="Permanent link" href="#what" class="permalink">&para;</a></h2>
 
 
     <p>Os arquivos <code>.htaccess</code> (ou "arquivos de
@@ -109,7 +110,7 @@
     documentação por essa diretriz, e verifique a linha de
     Contexto por ".htaccess".</p> </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="when" id="when">Quando (não) usar arquivos .htaccess</a></h2>
+<h2><a name="when" id="when">Quando (não) usar arquivos .htaccess</a><a title="Permanent link" href="#when" class="permalink">&para;</a></h2>
 
     <p>No geral, você nunca deve usar arquivos <code>.htaccess</code>
     a não ser que você não tenha acesso ao arquivo de configuração
@@ -219,7 +220,7 @@
     </code></p></div>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="how" id="how">Como as diretrizes são aplicadas</a></h2>
+<h2><a name="how" id="how">Como as diretrizes são aplicadas</a><a title="Permanent link" href="#how" class="permalink">&para;</a></h2>
 
     <p>As diretrizes de configuração que se encontram em um arquivo
     <code>.htaccess</code> são aplicadas para o diretório no qual o
@@ -261,7 +262,7 @@
     quaisquer outros ajustes previamente configurados.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="auth" id="auth">Exemplo de Autenticação</a></h2>
+<h2><a name="auth" id="auth">Exemplo de Autenticação</a><a title="Permanent link" href="#auth" class="permalink">&para;</a></h2>
 
     <p>Se você veio diretamente à esta parte do documento para
     aprender como fazer autenticação, é importante notar uma
@@ -298,7 +299,7 @@
     autenticação e autorização.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="ssi" id="ssi">Exemplo de Server Side Includes</a></h2>
+<h2><a name="ssi" id="ssi">Exemplo de Server Side Includes</a><a title="Permanent link" href="#ssi" class="permalink">&para;</a></h2>
 
     <p>Outro uso comum de arquivos <code>.htaccess</code> é ativar o
     Server Side Includes para um diretório em particular. Isto pode
@@ -319,7 +320,7 @@
     uma discussão mais completa sobre server-side includes.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="cgi" id="cgi">Exemplo de CGI</a></h2>
+<h2><a name="cgi" id="cgi">Exemplo de CGI</a><a title="Permanent link" href="#cgi" class="permalink">&para;</a></h2>
 
     <p>Finalmente, você pode querer que um arquivo
     <code>.htaccess</code> permita a execução de programas CGI em um
@@ -349,7 +350,7 @@
     e configuração CGI.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="troubleshoot" id="troubleshoot">Resolvendo Problemas</a></h2>
+<h2><a name="troubleshoot" id="troubleshoot">Resolvendo Problemas</a><a title="Permanent link" href="#troubleshoot" class="permalink">&para;</a></h2>
 
     <p>Quando você adiciona diretrizes de configuração em um arquivo
     <code>.htaccess</code>, e não obtém o efeito desejado, existe uma
@@ -374,6 +375,7 @@
 </div></div>
 <div class="bottomlang">
 <p><span>Línguas Disponíveis: </span><a href="../en/howto/htaccess.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="../es/howto/htaccess.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="../fr/howto/htaccess.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/howto/htaccess.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/howto/htaccess.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -396,7 +398,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/howto/htaccess.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licenciado sob a <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licenciado sob a <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Módulos</a> | <a href="../mod/quickreference.html">Diretrizes</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossário</a> | <a href="../sitemap.html">Mapa do site</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

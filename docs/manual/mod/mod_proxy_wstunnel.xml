@@ -34,21 +34,30 @@
     <p>This module <em>requires</em> the service of <module
     >mod_proxy</module>. It provides support for the tunnelling of web
     socket connections to a backend websockets server. The connection
-    is automagically upgraded to a websocket connection:</p>
+    is automatically upgraded to a websocket connection:</p>
 
-    <highlight language="config">
+    <example><title>HTTP Response</title>
+        <highlight language="config">
 Upgrade: WebSocket
 Connection: Upgrade
-    </highlight>
+        </highlight>
+    </example>
 
-
-    <example><title>Proxying requests to websockets server</title>
+<p>Proxying requests to a websockets server like <code>echo.websocket.org</code> can be done using the
+<directive type="ProxyPass" module="mod_proxy">ProxyPass</directive> directive:</p>
     <highlight language="config">
 ProxyPass "/ws2/"  "ws://echo.websocket.org/"
 ProxyPass "/wss2/" "wss://echo.websocket.org/"
     </highlight>
-    </example>
 
+<p>Load balancing for multiple backends can be achieved using <module>mod_proxy_balancer</module>.</p>
+
+<p>In fact the module can be used to upgrade to other protocols, you can set the <code>upgrade</code>
+parameter in the <directive type="ProxyPass" module="mod_proxy">ProxyPass</directive>
+directive to allow the module to accept other protocol.
+NONE means you bypass the check for the header but still upgrade to WebSocket.
+ANY means that <code>Upgrade</code> will read in the request headers and use
+in the response <code>Upgrade</code></p>
 </summary>
 
 <seealso><module>mod_proxy</module></seealso>
@@ -81,7 +90,9 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"
 
 <usage>
     <p>This directive imposes a maximum amount of time for the tunnel to be
-    left open while idle.</p>
+    left open while idle. The timeout is considered in seconds by default, but
+    it is possible to increase the time resolution to milliseconds
+    adding the <em>ms</em> suffix.</p>
 </usage>
 </directivesynopsis>
 
@@ -96,7 +107,9 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"
 
 <usage>
     <p>If <directive>ProxyWebsocketAsync</directive> is enabled, this directive
-    controls how long the server synchronously waits for more data.</p>
+    controls how long the server synchronously waits for more data. The timeout
+    is considered in seconds by default, but it is possible to increase
+    the time resolution to milliseconds adding the <em>ms</em> suffix.</p>
 
     <note><title>Note</title><p>Async support is experimental and subject
     to change. </p></note>

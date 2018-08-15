@@ -39,6 +39,7 @@
 #include "http_protocol.h"
 #include "http_log.h"
 #include "http_main.h"
+#include "mpm_common.h"
 #include "util_filter.h"
 #include "util_charset.h"
 #include "scoreboard.h"
@@ -186,7 +187,8 @@ static void ap_die_r(int type, request_rec *r, int recursive_error)
             apr_table_setn(r->headers_out, "Location", custom_response);
         }
         else if (custom_response[0] == '/') {
-            const char *error_notes;
+            const char *error_notes, *original_method;
+            int original_method_number;
             r->no_local_copy = 1;       /* Do NOT send HTTP_NOT_MODIFIED for
                                          * error documents! */
             /*
@@ -204,9 +206,14 @@ static void ap_die_r(int type, request_rec *r, int recursive_error)
                                              "error-notes")) != NULL) {
                 apr_table_setn(r->subprocess_env, "ERROR_NOTES", error_notes);
             }
+            original_method = r->method;
+            original_method_number = r->method_number;
             r->method = "GET";
             r->method_number = M_GET;
             ap_internal_redirect(custom_response, r);
+            /* preserve ability to see %<m in the access log */
+            r->method = original_method;
+            r->method_number = original_method_number;
             return;
         }
         else {
@@ -228,47 +235,154 @@ AP_DECLARE(void) ap_die(int type, request_rec *r)
     ap_die_r(type, r, r->status);
 }
 
-static void check_pipeline(conn_rec *c, apr_bucket_brigade *bb)
+AP_DECLARE(apr_status_t) ap_check_pipeline(conn_rec *c, apr_bucket_brigade *bb,
+                                           unsigned int max_blank_lines)
 {
-    if (c->keepalive != AP_CONN_CLOSE && !c->aborted) {
-        apr_status_t rv;
+    apr_status_t rv = APR_EOF;
+    ap_input_mode_t mode = AP_MODE_SPECULATIVE;
+    unsigned int num_blank_lines = 0;
+    apr_size_t cr = 0;
+    char buf[2];
 
-        AP_DEBUG_ASSERT(APR_BRIGADE_EMPTY(bb));
-        rv = ap_get_brigade(c->input_filters, bb, AP_MODE_SPECULATIVE,
-                            APR_NONBLOCK_READ, 1);
+    while (c->keepalive != AP_CONN_CLOSE && !c->aborted) {
+        apr_size_t len = cr + 1;
+
+        apr_brigade_cleanup(bb);
+        rv = ap_get_brigade(c->input_filters, bb, mode,
+                            APR_NONBLOCK_READ, len);
         if (rv != APR_SUCCESS || APR_BRIGADE_EMPTY(bb)) {
-            /*
-             * Error or empty brigade: There is no data present in the input
-             * filter
-             */
-            c->data_in_input_filters = 0;
+            if (mode == AP_MODE_READBYTES) {
+                /* Unexpected error, stop with this connection */
+                ap_log_cerror(APLOG_MARK, APLOG_ERR, rv, c, APLOGNO(02967)
+                              "Can't consume pipelined empty lines");
+                c->keepalive = AP_CONN_CLOSE;
+                rv = APR_EGENERAL;
+            }
+            else if (rv != APR_SUCCESS && !APR_STATUS_IS_EAGAIN(rv)) {
+                /* Pipe is dead */
+                c->keepalive = AP_CONN_CLOSE;
+            }
+            else {
+                /* Pipe is up and empty */
+                rv = APR_EAGAIN;
+            }
+            break;
+        }
+        if (!max_blank_lines) {
+            apr_off_t n = 0;
+            /* Single read asked, (non-meta-)data available? */
+            rv = apr_brigade_length(bb, 0, &n);
+            if (rv == APR_SUCCESS && n <= 0) {
+                rv = APR_EAGAIN;
+            }
+            break;
+        }
+
+        /* Lookup and consume blank lines */
+        rv = apr_brigade_flatten(bb, buf, &len);
+        if (rv != APR_SUCCESS || len != cr + 1) {
+            int log_level;
+            if (mode == AP_MODE_READBYTES) {
+                /* Unexpected error, stop with this connection */
+                c->keepalive = AP_CONN_CLOSE;
+                log_level = APLOG_ERR;
+                rv = APR_EGENERAL;
+            }
+            else {
+                /* Let outside (non-speculative/blocking) read determine
+                 * where this possible failure comes from (metadata,
+                 * morphed EOF socket, ...). Debug only here.
+                 */
+                log_level = APLOG_DEBUG;
+                rv = APR_SUCCESS;
+            }
+            ap_log_cerror(APLOG_MARK, log_level, rv, c, APLOGNO(02968)
+                          "Can't check pipelined data");
+            break;
+        }
+
+        if (mode == AP_MODE_READBYTES) {
+            /* [CR]LF consumed, try next */
+            mode = AP_MODE_SPECULATIVE;
+            cr = 0;
+        }
+        else if (cr) {
+            AP_DEBUG_ASSERT(len == 2 && buf[0] == APR_ASCII_CR);
+            if (buf[1] == APR_ASCII_LF) {
+                /* consume this CRLF */
+                mode = AP_MODE_READBYTES;
+                num_blank_lines++;
+            }
+            else {
+                /* CR(?!LF) is data */
+                break;
+            }
         }
         else {
-            c->data_in_input_filters = 1;
+            if (buf[0] == APR_ASCII_LF) {
+                /* consume this LF */
+                mode = AP_MODE_READBYTES;
+                num_blank_lines++;
+            }
+            else if (buf[0] == APR_ASCII_CR) {
+                cr = 1;
+            }
+            else {
+                /* Not [CR]LF, some data */
+                break;
+            }
+        }
+        if (num_blank_lines > max_blank_lines) {
+            /* Enough blank lines with this connection,
+             * stop and don't recycle it.
+             */
+            c->keepalive = AP_CONN_CLOSE;
+            rv = APR_NOTFOUND;
+            break;
         }
     }
-}
 
+    return rv;
+}
 
 AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
 {
     apr_bucket_brigade *bb;
     apr_bucket *b;
     conn_rec *c = r->connection;
+    ap_filter_t *f;
 
     /* Send an EOR bucket through the output filter chain.  When
      * this bucket is destroyed, the request will be logged and
      * its pool will be freed
      */
-    bb = apr_brigade_create(c->pool, c->bucket_alloc);
+    bb = ap_reuse_brigade_from_pool("ap_prah_bb", c->pool, c->bucket_alloc);
     b = ap_bucket_eor_create(c->bucket_alloc, r);
     APR_BRIGADE_INSERT_HEAD(bb, b);
 
-    ap_pass_brigade(c->output_filters, bb);
-    
+    /* Find the last request, taking into account internal
+     * redirects. We want to send the EOR bucket at the end of
+     * all the buckets so it does not jump the queue.
+     */
+    while (r->next) {
+        r = r->next;
+    }
+
+    /* All the request filters should have bailed out on EOS, and in any
+     * case they shouldn't have to handle this EOR which will destroy the
+     * request underneath them. So go straight to the core request filter
+     * which (if any) will take care of the setaside buckets.
+     */
+    for (f = r->output_filters; f; f = f->next) {
+        if (f->frec == ap_request_core_filter_handle) {
+            break;
+        }
+    }
+    ap_pass_brigade(f ? f : c->output_filters, bb);
+
     /* The EOR bucket has either been handled by an output filter (eg.
      * deleted or moved to a buffered_bb => no more in bb), or an error
-     * occured before that (eg. c->aborted => still in bb) and we ought
+     * occurred before that (eg. c->aborted => still in bb) and we ought
      * to destroy it now. So cleanup any remaining bucket along with
      * the orphan request (if any).
      */
@@ -279,11 +393,27 @@ AP_DECLARE(void) ap_process_request_after_handler(request_rec *r)
      * already by the EOR bucket's cleanup function.
      */
 
-    check_pipeline(c, bb);
-    apr_brigade_destroy(bb);
-    if (c->cs)
-        c->cs->state = (c->aborted) ? CONN_STATE_LINGER
-                                    : CONN_STATE_WRITE_COMPLETION;
+    /* Check pipeline consuming blank lines, they must not be interpreted as
+     * the next pipelined request, otherwise we would block on the next read
+     * without flushing data, and hence possibly delay pending response(s)
+     * until the next/real request comes in or the keepalive timeout expires.
+     */
+    (void)ap_check_pipeline(c, bb, DEFAULT_LIMIT_BLANK_LINES);
+    apr_brigade_cleanup(bb);
+
+    if (c->cs) {
+        if (c->aborted) {
+            c->cs->state = CONN_STATE_LINGER;
+        }
+        else {
+            /* If we have still data in the output filters here it means that
+             * the last (recent) nonblocking write was EAGAIN, so tell the MPM
+             * to not try another useless/stressful one but to go straight to
+             * POLLOUT.
+            */
+            c->cs->state = CONN_STATE_WRITE_COMPLETION;
+        }
+    }
     AP_PROCESS_REQUEST_RETURN((uintptr_t)r, r->uri, r->status);
     if (ap_extended_status) {
         ap_time_process_request(c->sbh, STOP_PREQUEST);
@@ -372,8 +502,8 @@ AP_DECLARE(void) ap_process_request(request_rec *r)
 
     ap_process_async_request(r);
 
-    if (!c->data_in_input_filters) {
-        bb = apr_brigade_create(c->pool, c->bucket_alloc);
+    if (ap_run_input_pending(c) != OK) {
+        bb = ap_reuse_brigade_from_pool("ap_pr_bb", c->pool, c->bucket_alloc);
         b = apr_bucket_flush_create(c->bucket_alloc);
         APR_BRIGADE_INSERT_HEAD(bb, b);
         rv = ap_pass_brigade(c->output_filters, bb);
@@ -382,14 +512,11 @@ AP_DECLARE(void) ap_process_request(request_rec *r)
              * Notice a timeout as an error message. This might be
              * valuable for detecting clients with broken network
              * connections or possible DoS attacks.
-             *
-             * It is still safe to use r / r->pool here as the eor bucket
-             * could not have been destroyed in the event of a timeout.
              */
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, rv, r, APLOGNO(01581)
-                          "Timeout while writing data for URI %s to the"
-                          " client", r->unparsed_uri);
+            ap_log_cerror(APLOG_MARK, APLOG_INFO, rv, c, APLOGNO(01581)
+                          "flushing data to the client");
         }
+        apr_brigade_cleanup(bb);
     }
     if (ap_extended_status) {
         ap_time_process_request(c->sbh, STOP_PREQUEST);
@@ -417,6 +544,7 @@ static request_rec *internal_internal_redirect(const char *new_uri,
                                                request_rec *r) {
     int access_status;
     request_rec *new;
+    const char *vary_header;
 
     if (ap_is_recursion_limit_exceeded(r)) {
         ap_die(HTTP_INTERNAL_SERVER_ERROR, r);
@@ -480,6 +608,16 @@ static request_rec *internal_internal_redirect(const char *new_uri,
         if (location)
             apr_table_setn(new->headers_out, "Location", location);
     }
+
+    /* A module (like mod_rewrite) can force an internal redirect
+     * to carry over the Vary header (if present).
+     */
+    if (apr_table_get(r->notes, "redirect-keeps-vary")) {
+        if((vary_header = apr_table_get(r->headers_out, "Vary"))) {
+            apr_table_setn(new->headers_out, "Vary", vary_header);
+        }
+    }
+
     new->err_headers_out = r->err_headers_out;
     new->trailers_out    = apr_table_make(r->pool, 5);
     new->subprocess_env  = rename_original_env(r->pool, r->subprocess_env);
@@ -613,8 +751,17 @@ AP_DECLARE(void) ap_internal_fast_redirect(request_rec *rr, request_rec *r)
     update_r_in_filters(r->output_filters, rr, r);
 
     if (r->main) {
-        ap_add_output_filter_handle(ap_subreq_core_filter_handle,
-                                    NULL, r, r->connection);
+        ap_filter_t *next = r->output_filters;
+        while (next && (next != r->proto_output_filters)) {
+            if (next->frec == ap_subreq_core_filter_handle) {
+                break;
+            }
+            next = next->next;
+        }
+        if (!next || next == r->proto_output_filters) {
+            ap_add_output_filter_handle(ap_subreq_core_filter_handle,
+                                        NULL, r, r->connection);
+        }
     }
     else {
         /*
@@ -646,7 +793,7 @@ AP_DECLARE(void) ap_internal_redirect(const char *new_uri, request_rec *r)
 
     AP_INTERNAL_REDIRECT(r->uri, new_uri);
 
-    /* ap_die was already called, if an error occured */
+    /* ap_die was already called, if an error occurred */
     if (!new) {
         return;
     }
@@ -670,7 +817,7 @@ AP_DECLARE(void) ap_internal_redirect_handler(const char *new_uri, request_rec *
     int access_status;
     request_rec *new = internal_internal_redirect(new_uri, r);
 
-    /* ap_die was already called, if an error occured */
+    /* ap_die was already called, if an error occurred */
     if (!new) {
         return;
     }

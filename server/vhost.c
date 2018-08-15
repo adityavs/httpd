@@ -23,6 +23,7 @@
 #include "apr.h"
 #include "apr_strings.h"
 #include "apr_lib.h"
+#include "apr_version.h"
 
 #define APR_WANT_STRFUNC
 #include "apr_want.h"
@@ -34,6 +35,7 @@
 #include "http_vhost.h"
 #include "http_protocol.h"
 #include "http_core.h"
+#include "http_main.h"
 
 #if APR_HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -97,13 +99,6 @@ static ipaddr_chain *iphash_table[IPHASH_TABLE_SIZE];
 /* list of the _default_ servers */
 static ipaddr_chain *default_list;
 
-/* whether a config error was seen */
-static int config_error = 0;
-
-/* config check function */
-static int vhost_check_config(apr_pool_t *p, apr_pool_t *plog,
-                              apr_pool_t *ptemp, server_rec *s);
-
 /*
  * How it's used:
  *
@@ -132,7 +127,6 @@ AP_DECLARE(void) ap_init_vhost_config(apr_pool_t *p)
 {
     memset(iphash_table, 0, sizeof(iphash_table));
     default_list = NULL;
-    ap_hook_check_config(vhost_check_config, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
 
@@ -181,9 +175,14 @@ static const char *get_addresses(apr_pool_t *p, const char *w_,
     if (!host) {
         return "Missing address for VirtualHost";
     }
+#if !APR_VERSION_AT_LEAST(1,7,0)
     if (scope_id) {
-        return "Scope ids are not supported";
+        return apr_pstrcat(p,
+                           "Scope ID in address '", w,
+                           "' not supported with APR " APR_VERSION_STRING,
+                           NULL);
     }
+#endif
     if (!port && !wild_port) {
         port = default_port;
     }
@@ -202,6 +201,17 @@ static const char *get_addresses(apr_pool_t *p, const char *w_,
                 "Could not resolve host name %s -- ignoring!", host);
             return NULL;
         }
+#if APR_VERSION_AT_LEAST(1,7,0)
+        if (scope_id) {
+            rv = apr_sockaddr_zone_set(my_addr, scope_id);
+            if (rv) {
+                ap_log_error(APLOG_MARK, APLOG_ERR, rv, NULL, APLOGNO(10103)
+                             "Could not set scope ID %s for %pI -- ignoring!",
+                             scope_id, my_addr);
+                return NULL;
+            }
+        }
+#endif
     }
 
     /* Remember all addresses for the host */
@@ -221,14 +231,14 @@ static const char *get_addresses(apr_pool_t *p, const char *w_,
 
 
 /* parse the <VirtualHost> addresses */
-const char *ap_parse_vhost_addrs(apr_pool_t *p,
-                                 const char *hostname,
-                                 server_rec *s)
+AP_DECLARE(const char *)ap_parse_vhost_addrs(apr_pool_t *p,
+                                             const char *hostname,
+                                             server_rec *s)
 {
     server_addr_rec **addrs;
     const char *err;
 
-    /* start the list of addreses */
+    /* start the list of addresses */
     addrs = &s->addrs;
     while (hostname[0]) {
         err = get_addresses(p, ap_getword_conf(p, &hostname), &addrs, s->port);
@@ -298,7 +308,7 @@ static void dump_iphash_statistics(server_rec *main_s)
     }
     qsort(count, IPHASH_TABLE_SIZE, sizeof(count[0]), iphash_compare);
     p = buf + apr_snprintf(buf, sizeof(buf),
-                           "iphash: total hashed = %u, avg chain = %u, "
+                           APLOGNO(03235) "iphash: total hashed = %u, avg chain = %u, "
                            "chain lengths (count x len):",
                            total, total / IPHASH_TABLE_SIZE);
     total = 1;
@@ -314,6 +324,8 @@ static void dump_iphash_statistics(server_rec *main_s)
     }
     p += apr_snprintf(p, sizeof(buf) - (p - buf), " %ux%u",
                       total, count[IPHASH_TABLE_SIZE - 1]);
+    /* Intentional no APLOGNO */
+    /* buf provides APLOGNO */
     ap_log_error(APLOG_MARK, APLOG_DEBUG, main_s, buf);
 }
 #endif
@@ -572,7 +584,7 @@ AP_DECLARE(void) ap_fini_vhost_config(apr_pool_t *p, server_rec *main_s)
 
     /* The next things to go into the hash table are the virtual hosts
      * themselves.  They're listed off of main_s->next in the reverse
-     * order they occured in the config file, so we insert them at
+     * order they occurred in the config file, so we insert them at
      * the iphash_table_tail but don't advance the tail.
      */
 
@@ -675,12 +687,6 @@ AP_DECLARE(void) ap_fini_vhost_config(apr_pool_t *p, server_rec *main_s)
     }
 }
 
-static int vhost_check_config(apr_pool_t *p, apr_pool_t *plog,
-                              apr_pool_t *ptemp, server_rec *s)
-{
-    return config_error ? !OK : OK;
-}
-
 /*****************************************************************************
  * run-time vhost matching functions
  */
@@ -749,17 +755,13 @@ static apr_status_t fix_hostname_non_v6(request_rec *r, char *host)
  * If strict mode ever becomes the default, this should be folded into
  * fix_hostname_non_v6()
  */
-static apr_status_t strict_hostname_check(request_rec *r, char *host,
-                                          int logonly)
+static apr_status_t strict_hostname_check(request_rec *r, char *host)
 {
     char *ch;
     int is_dotted_decimal = 1, leading_zeroes = 0, dots = 0;
 
     for (ch = host; *ch; ch++) {
-        if (!apr_isascii(*ch)) {
-            goto bad;
-        }
-        else if (apr_isalpha(*ch) || *ch == '-') {
+        if (apr_isalpha(*ch) || *ch == '-' || *ch == '_') {
             is_dotted_decimal = 0;
         }
         else if (ch[0] == '.') {
@@ -793,8 +795,6 @@ bad:
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02415)
                   "[strict] Invalid host name '%s'%s%.6s",
                   host, *ch ? ", problem near: " : "", ch);
-    if (logonly)
-        return APR_SUCCESS;
     return APR_EINVAL;
 }
 
@@ -820,8 +820,7 @@ static int fix_hostname(request_rec *r, const char *host_header,
     apr_status_t rv;
     const char *c;
     int is_v6literal = 0;
-    int strict = http_conformance & AP_HTTP_CONFORMANCE_STRICT;
-    int strict_logonly = http_conformance & AP_HTTP_CONFORMANCE_LOGONLY;
+    int strict = (http_conformance != AP_HTTP_CONFORMANCE_UNSAFE);
 
     src = host_header ? host_header : r->hostname;
 
@@ -841,8 +840,7 @@ static int fix_hostname(request_rec *r, const char *host_header,
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02416)
                          "[strict] purely numeric host names not allowed: %s",
                          src);
-            if (!strict_logonly)
-                goto bad_nolog;
+            goto bad_nolog;
         }
         r->hostname = src;
         return is_v6literal;
@@ -880,7 +878,7 @@ static int fix_hostname(request_rec *r, const char *host_header,
     else {
         rv = fix_hostname_non_v6(r, host);
         if (strict && rv == APR_SUCCESS)
-            rv = strict_hostname_check(r, host, strict_logonly);
+            rv = strict_hostname_check(r, host);
     }
     if (rv != APR_SUCCESS)
         goto bad;
@@ -913,7 +911,7 @@ static int matches_aliases(server_rec *s, const char *host)
     if (names) {
         char **name = (char **) names->elts;
         for (i = 0; i < names->nelts; ++i) {
-            if(!name[i]) continue;
+            if (!name[i]) continue;
             if (!strcasecmp(host, name[i]))
                 return 1;
         }
@@ -922,7 +920,7 @@ static int matches_aliases(server_rec *s, const char *host)
     if (names) {
         char **name = (char **) names->elts;
         for (i = 0; i < names->nelts; ++i) {
-            if(!name[i]) continue;
+            if (!name[i]) continue;
             if (!ap_strcasecmp_match(host, name[i]))
                 return 1;
         }
@@ -979,7 +977,13 @@ AP_DECLARE(int) ap_matches_request_vhost(request_rec *r, const char *host,
 }
 
 
-static void check_hostalias(request_rec *r)
+/*
+ * Updates r->server from ServerName/ServerAlias. Per the interaction
+ * of ip and name-based vhosts, it only looks in the best match from the
+ * connection-level ip-based matching.
+ * Returns HTTP_BAD_REQUEST if there was no match.
+ */
+static int update_server_from_aliases(request_rec *r)
 {
     /*
      * Even if the request has a Host: header containing a port we ignore
@@ -1056,11 +1060,18 @@ static void check_hostalias(request_rec *r)
         goto found;
     }
 
-    return;
+    if (r->server == ap_server_conf) { 
+        if (matches_aliases(ap_server_conf, host)) {
+            s = ap_server_conf;
+            goto found;
+        }
+    }
+    return HTTP_BAD_REQUEST;
 
 found:
     /* s is the first matching server, we're done */
     r->server = s;
+    return HTTP_OK;
 }
 
 
@@ -1077,7 +1088,7 @@ static void check_serverpath(request_rec *r)
      * This is in conjunction with the ServerPath code in http_core, so we
      * get the right host attached to a non- Host-sending request.
      *
-     * See the comment in check_hostalias about how each vhost can be
+     * See the comment in update_server_from_aliases about how each vhost can be
      * listed multiple times.
      */
 
@@ -1141,10 +1152,16 @@ static APR_INLINE const char *construct_host_header(request_rec *r,
 
 AP_DECLARE(void) ap_update_vhost_from_headers(request_rec *r)
 {
+    ap_update_vhost_from_headers_ex(r, 0);
+}
+
+AP_DECLARE(int) ap_update_vhost_from_headers_ex(request_rec *r, int require_match)
+{
     core_server_config *conf = ap_get_core_module_config(r->server->module_config);
     const char *host_header = apr_table_get(r->headers_in, "Host");
     int is_v6literal = 0;
     int have_hostname_from_url = 0;
+    int rc = HTTP_OK;
 
     if (r->hostname) {
         /*
@@ -1157,10 +1174,10 @@ AP_DECLARE(void) ap_update_vhost_from_headers(request_rec *r)
     else if (host_header != NULL) {
         is_v6literal = fix_hostname(r, host_header, conf->http_conformance);
     }
-    if (r->status != HTTP_OK)
-        return;
+    if (!require_match && r->status != HTTP_OK)
+        return HTTP_OK;
 
-    if (conf->http_conformance & AP_HTTP_CONFORMANCE_STRICT) {
+    if (conf->http_conformance != AP_HTTP_CONFORMANCE_UNSAFE) {
         /*
          * If we have both hostname from an absoluteURI and a Host header,
          * we must ignore the Host header (RFC 2616 5.2).
@@ -1168,25 +1185,27 @@ AP_DECLARE(void) ap_update_vhost_from_headers(request_rec *r)
          * request line.
          */
         if (have_hostname_from_url && host_header != NULL) {
-            const char *info = "Would replace";
-            const char *new = construct_host_header(r, is_v6literal);
-            if (!(conf->http_conformance & AP_HTTP_CONFORMANCE_LOGONLY)) {
-                apr_table_set(r->headers_in, "Host", r->hostname);
-                info = "Replacing";
-            }
+            const char *repl = construct_host_header(r, is_v6literal);
+            apr_table_setn(r->headers_in, "Host", repl);
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02417)
-                          "%s Host header '%s' with host from request uri: "
-                          "'%s'", info, host_header, new);
+                          "Replacing host header '%s' with host '%s' given "
+                          "in the request uri", host_header, repl);
         }
     }
 
     /* check if we tucked away a name_chain */
     if (r->connection->vhost_lookup_data) {
         if (r->hostname)
-            check_hostalias(r);
+            rc = update_server_from_aliases(r);
         else
             check_serverpath(r);
     }
+    else if (require_match) { 
+        /* check the base server config */
+        rc = update_server_from_aliases(r);
+    }
+    
+    return rc;
 }
 
 /**

@@ -21,10 +21,10 @@
  *
  * Adapted by rst from original NCSA code by Rob McCool
  *
- * Apache adds some new env vars; REDIRECT_URL and REDIRECT_QUERY_STRING for
- * custom error responses, and DOCUMENT_ROOT because we found it useful.
- * It also adds SERVER_ADMIN - useful for scripts to know who to mail when
- * they fail.
+ * This modules uses a httpd core function (ap_add_common_vars) to add some new env vars, 
+ * like REDIRECT_URL and REDIRECT_QUERY_STRING for custom error responses and DOCUMENT_ROOT.
+ * It also adds SERVER_ADMIN - useful for scripts to know who to mail when they fail.
+ * 
  */
 
 #include "apr.h"
@@ -92,6 +92,10 @@ typedef struct {
     apr_size_t  bufbytes;
 } cgi_server_conf;
 
+typedef struct {
+    apr_interval_time_t timeout;
+} cgi_dirconf;
+
 static void *create_cgi_config(apr_pool_t *p, server_rec *s)
 {
     cgi_server_conf *c =
@@ -110,6 +114,12 @@ static void *merge_cgi_config(apr_pool_t *p, void *basev, void *overridesv)
                     *overrides = (cgi_server_conf *) overridesv;
 
     return overrides->logname ? overrides : base;
+}
+
+static void *create_cgi_dirconf(apr_pool_t *p, char *dummy)
+{
+    cgi_dirconf *c = (cgi_dirconf *) apr_pcalloc(p, sizeof(cgi_dirconf));
+    return c;
 }
 
 static const char *set_scriptlog(cmd_parms *cmd, void *dummy, const char *arg)
@@ -150,6 +160,17 @@ static const char *set_scriptlog_buffer(cmd_parms *cmd, void *dummy,
     return NULL;
 }
 
+static const char *set_script_timeout(cmd_parms *cmd, void *dummy, const char *arg)
+{
+    cgi_dirconf *dc = dummy;
+
+    if (ap_timeout_parameter_parse(arg, &dc->timeout, "s") != APR_SUCCESS) {
+        return "CGIScriptTimeout has wrong format";
+    }
+
+    return NULL;
+}
+
 static const command_rec cgi_cmds[] =
 {
 AP_INIT_TAKE1("ScriptLog", set_scriptlog, NULL, RSRC_CONF,
@@ -158,6 +179,9 @@ AP_INIT_TAKE1("ScriptLogLength", set_scriptlog_length, NULL, RSRC_CONF,
      "the maximum length (in bytes) of the script debug log"),
 AP_INIT_TAKE1("ScriptLogBuffer", set_scriptlog_buffer, NULL, RSRC_CONF,
      "the maximum size (in bytes) to record of a POST request"),
+AP_INIT_TAKE1("CGIScriptTimeout", set_script_timeout, NULL, RSRC_CONF | ACCESS_CONF,
+     "The amount of time to wait between successful reads from "
+     "the CGI script, in seconds."),
     {NULL}
 };
 
@@ -167,10 +191,11 @@ static int log_scripterror(request_rec *r, cgi_server_conf * conf, int ret,
     apr_file_t *f = NULL;
     apr_finfo_t finfo;
     char time_str[APR_CTIME_LEN];
-    int log_flags = rv ? APLOG_ERR : APLOG_ERR;
 
-    ap_log_rerror(APLOG_MARK, log_flags, rv, r,
-                  "%s%s: %s", logno ? logno : "", error, r->filename);
+    /* Intentional no APLOGNO */
+    /* Callee provides APLOGNO in error text */
+    ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
+                  "%sstderr from %s: %s", logno ? logno : "", r->filename, error);
 
     /* XXX Very expensive mainline case! Open, then getfileinfo! */
     if (!conf->logname ||
@@ -207,8 +232,14 @@ static apr_status_t log_script_err(request_rec *r, apr_file_t *script_err)
 
     while ((rv = apr_file_gets(argsbuffer, HUGE_STRING_LEN,
                                script_err)) == APR_SUCCESS) {
+
         newline = strchr(argsbuffer, '\n');
         if (newline) {
+            char *prev = newline - 1;
+            if (prev >= argsbuffer && *prev == '\r') {
+                newline = prev;
+            }
+
             *newline = '\0';
         }
         log_scripterror(r, conf, r->status, 0, APLOGNO(01215), argsbuffer);
@@ -458,28 +489,32 @@ static apr_status_t run_cgi_child(apr_file_t **script_out,
 
         if (rc != APR_SUCCESS) {
             /* Bad things happened. Everyone should have cleaned up. */
+            /* Intentional no APLOGNO */
             ap_log_rerror(APLOG_MARK, APLOG_ERR|APLOG_TOCLIENT, rc, r,
                           "couldn't create child process: %d: %s", rc,
                           apr_filepath_name_get(r->filename));
         }
         else {
+            cgi_dirconf *dc = ap_get_module_config(r->per_dir_config, &cgi_module);
+            apr_interval_time_t timeout = dc->timeout > 0 ? dc->timeout : r->server->timeout;
+
             apr_pool_note_subprocess(p, procnew, APR_KILL_AFTER_TIMEOUT);
 
             *script_in = procnew->out;
             if (!*script_in)
                 return APR_EBADF;
-            apr_file_pipe_timeout_set(*script_in, r->server->timeout);
+            apr_file_pipe_timeout_set(*script_in, timeout);
 
             if (e_info->prog_type == RUN_AS_CGI) {
                 *script_out = procnew->in;
                 if (!*script_out)
                     return APR_EBADF;
-                apr_file_pipe_timeout_set(*script_out, r->server->timeout);
+                apr_file_pipe_timeout_set(*script_out, timeout);
 
                 *script_err = procnew->err;
                 if (!*script_err)
                     return APR_EBADF;
-                apr_file_pipe_timeout_set(*script_err, r->server->timeout);
+                apr_file_pipe_timeout_set(*script_err, timeout);
             }
         }
     }
@@ -676,11 +711,14 @@ static apr_status_t cgi_bucket_read(apr_bucket *b, const char **str,
                                     apr_size_t *len, apr_read_type_e block)
 {
     struct cgi_bucket_data *data = b->data;
-    apr_interval_time_t timeout;
+    apr_interval_time_t timeout = 0;
     apr_status_t rv;
     int gotdata = 0;
+    cgi_dirconf *dc = ap_get_module_config(data->r->per_dir_config, &cgi_module);
 
-    timeout = block == APR_NONBLOCK_READ ? 0 : data->r->server->timeout;
+    if (block != APR_NONBLOCK_READ) {
+        timeout = dc->timeout > 0 ? dc->timeout : data->r->server->timeout;
+    }
 
     do {
         const apr_pollfd_t *results;
@@ -758,6 +796,8 @@ static int cgi_handler(request_rec *r)
     apr_status_t rv;
     cgi_exec_info_t e_info;
     conn_rec *c;
+    cgi_dirconf *dc = ap_get_module_config(r->per_dir_config, &cgi_module);
+    apr_interval_time_t timeout = dc->timeout > 0 ? dc->timeout : r->server->timeout;
 
     if (strcmp(r->handler, CGI_MAGIC_TYPE) && strcmp(r->handler, "cgi-script")) {
         return DECLINED;
@@ -797,7 +837,7 @@ static int cgi_handler(request_rec *r)
 /*
     if (!ap_suexec_enabled) {
         if (!ap_can_exec(&r->finfo))
-            return log_scripterror(r, conf, HTTP_FORBIDDEN, 0,
+            return log_scripterror(r, conf, HTTP_FORBIDDEN, 0, APLOGNO(03194)
                                    "file permissions deny server execution");
     }
 
@@ -850,11 +890,6 @@ static int cgi_handler(request_rec *r)
                             APR_BLOCK_READ, HUGE_STRING_LEN);
 
         if (rv != APR_SUCCESS) {
-            if (APR_STATUS_IS_TIMEUP(rv)) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01224)
-                              "Timeout during reading request entity data");
-                return HTTP_REQUEST_TIME_OUT;
-            }
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(01225)
                           "Error reading request entity data");
             return ap_map_http_request_error(rv, HTTP_BAD_REQUEST);
@@ -982,7 +1017,7 @@ static int cgi_handler(request_rec *r)
              * stderr output, as normal. */
             discard_script_output(bb);
             apr_brigade_destroy(bb);
-            apr_file_pipe_timeout_set(script_err, r->server->timeout);
+            apr_file_pipe_timeout_set(script_err, timeout);
             log_script_err(r, script_err);
         }
 
@@ -1033,7 +1068,7 @@ static int cgi_handler(request_rec *r)
      * connection drops or we stopped sending output for some other
      * reason */
     if (rv == APR_SUCCESS && !r->connection->aborted) {
-        apr_file_pipe_timeout_set(script_err, r->server->timeout);
+        apr_file_pipe_timeout_set(script_err, timeout);
         log_script_err(r, script_err);
     }
 
@@ -1166,8 +1201,8 @@ static apr_status_t handle_exec(include_ctx_t *ctx, ap_filter_t *f,
         ap_log_rerror(APLOG_MARK,
                       (ctx->flags & SSI_FLAG_PRINTING)
                           ? APLOG_ERR : APLOG_WARNING,
-                      0, r, "missing argument for exec element in %s",
-                      r->filename);
+                      0, r, APLOGNO(03195)
+                      "missing argument for exec element in %s", r->filename);
     }
 
     if (!(ctx->flags & SSI_FLAG_PRINTING)) {
@@ -1274,7 +1309,7 @@ static void register_hooks(apr_pool_t *p)
 AP_DECLARE_MODULE(cgi) =
 {
     STANDARD20_MODULE_STUFF,
-    NULL,                        /* dir config creater */
+    create_cgi_dirconf,          /* dir config creater */
     NULL,                        /* dir merger --- default is to override */
     create_cgi_config,           /* server config */
     merge_cgi_config,            /* merge server config */

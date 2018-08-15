@@ -170,6 +170,14 @@
 #define SK_VALUE(x,y) sk_X509_value(x,y)
 typedef STACK_OF(X509) X509_STACK_TYPE;
 
+#if defined(_MSC_VER) && !defined(LIBRESSL_VERSION_NUMBER)
+/* The following logic ensures we correctly glue FILE* within one CRT used
+ * by the OpenSSL library build to another CRT used by the ab.exe build.
+ * This became especially problematic with Visual Studio 2015.
+ */
+#include <openssl/applink.c>
+#endif
+
 #endif
 
 #if defined(USE_SSL)
@@ -185,6 +193,17 @@ typedef STACK_OF(X509) X509_STACK_TYPE;
 #endif
 #ifdef SSL_OP_NO_TLSv1_2
 #define HAVE_TLSV1_X
+#endif
+#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_set_tlsext_host_name)
+#define HAVE_TLSEXT
+#endif
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2060000f
+#define SSL_CTRL_SET_MIN_PROTO_VERSION 123
+#define SSL_CTRL_SET_MAX_PROTO_VERSION 124
+#define SSL_CTX_set_min_proto_version(ctx, version) \
+   SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, version, NULL)
+#define SSL_CTX_set_max_proto_version(ctx, version) \
+   SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MAX_PROTO_VERSION, version, NULL)
 #endif
 #endif
 
@@ -302,7 +321,7 @@ int isproxy = 0;
 apr_interval_time_t aprtimeout = apr_time_from_sec(30); /* timeout value */
 
 /* overrides for ab-generated common headers */
-int opt_host = 0;       /* was an optional "Host:" header specified? */
+const char *opt_host;   /* which optional "Host:" header specified, if any */
 int opt_useragent = 0;  /* was an optional "User-Agent:" header specified? */
 int opt_accept = 0;     /* was an optional "Accept:" header specified? */
  /*
@@ -334,7 +353,14 @@ int is_ssl;
 SSL_CTX *ssl_ctx;
 char *ssl_cipher = NULL;
 char *ssl_info = NULL;
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+char *ssl_tmp_key = NULL;
+#endif
 BIO *bio_out,*bio_err;
+#ifdef HAVE_TLSEXT
+int tls_use_sni = 1;         /* used by default, -I disables it */
+const char *tls_sni = NULL; /* 'opt_host' if any, 'hostname' otherwise */
+#endif
 #endif
 
 apr_time_t start, lasttime, stoptime;
@@ -424,6 +450,41 @@ static char *xstrdup(const char *s)
         exit(1);
     }
     return ret;
+}
+
+/*
+ * Similar to standard strstr() but we ignore case in this version.
+ * Copied from ap_strcasestr().
+ */
+static char *xstrcasestr(const char *s1, const char *s2)
+{
+    char *p1, *p2;
+    if (*s2 == '\0') {
+        /* an empty s2 */
+        return((char *)s1);
+    }
+    while(1) {
+        for ( ; (*s1 != '\0') && (apr_tolower(*s1) != apr_tolower(*s2)); s1++);
+        if (*s1 == '\0') {
+            return(NULL);
+        }
+        /* found first character of s2, see if the rest matches */
+        p1 = (char *)s1;
+        p2 = (char *)s2;
+        for (++p1, ++p2; apr_tolower(*p1) == apr_tolower(*p2); ++p1, ++p2) {
+            if (*p1 == '\0') {
+                /* both strings ended together */
+                return((char *)s1);
+            }
+        }
+        if (*p2 == '\0') {
+            /* second string ended, a match */
+            break;
+        }
+        /* didn't find a match here, try starting at next character in s1 */
+        s1++;
+    }
+    return((char *)s1);
 }
 
 /* pool abort function */
@@ -674,6 +735,46 @@ static void ssl_proceed_handshake(struct connection *c)
                              SSL_CIPHER_get_name(ci),
                              pk_bits, sk_bits);
             }
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+            if (ssl_tmp_key == NULL) {
+                EVP_PKEY *key;
+                if (SSL_get_server_tmp_key(c->ssl, &key)) {
+                    ssl_tmp_key = xmalloc(128);
+                    switch (EVP_PKEY_id(key)) {
+                    case EVP_PKEY_RSA:
+                        apr_snprintf(ssl_tmp_key, 128, "RSA %d bits",
+                                     EVP_PKEY_bits(key));
+                        break;
+                    case EVP_PKEY_DH:
+                        apr_snprintf(ssl_tmp_key, 128, "DH %d bits",
+                                     EVP_PKEY_bits(key));
+                        break;
+#ifndef OPENSSL_NO_EC
+                    case EVP_PKEY_EC: {
+                        const char *cname = NULL;
+                        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
+                        int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
+                        EC_KEY_free(ec);
+                        cname = EC_curve_nid2nist(nid);
+                        if (!cname)
+                            cname = OBJ_nid2sn(nid);
+
+                        apr_snprintf(ssl_tmp_key, 128, "ECDH %s %d bits",
+                                     cname,
+                                     EVP_PKEY_bits(key));
+                        break;
+                        }
+#endif
+                    default:
+                        apr_snprintf(ssl_tmp_key, 128, "%s %d bits",
+                                     OBJ_nid2sn(EVP_PKEY_id(key)),
+                                     EVP_PKEY_bits(key));
+                        break;
+                    }
+                    EVP_PKEY_free(key);
+                }
+            }
+#endif
             write_request(c);
             do_next = 0;
             break;
@@ -682,8 +783,8 @@ static void ssl_proceed_handshake(struct connection *c)
             do_next = 0;
             break;
         case SSL_ERROR_WANT_WRITE:
-            /* Try again */
-            do_next = 1;
+            set_polled_events(c, APR_POLLOUT);
+            do_next = 0;
             break;
         case SSL_ERROR_WANT_CONNECT:
         case SSL_ERROR_SSL:
@@ -733,26 +834,40 @@ static void write_request(struct connection * c)
 
 #ifdef USE_SSL
         if (c->ssl) {
-            apr_size_t e_ssl;
-            e_ssl = SSL_write(c->ssl,request + c->rwrote, l);
-            if (e_ssl != l) {
-                BIO_printf(bio_err, "SSL write failed - closing connection\n");
-                ERR_print_errors(bio_err);
-                close_connection (c);
+            e = SSL_write(c->ssl, request + c->rwrote, l);
+            if (e <= 0) {
+                switch (SSL_get_error(c->ssl, e)) {
+                case SSL_ERROR_WANT_READ:
+                    set_polled_events(c, APR_POLLIN);
+                    break;
+                case SSL_ERROR_WANT_WRITE:
+                    set_polled_events(c, APR_POLLOUT);
+                    break;
+                default:
+                    BIO_printf(bio_err, "SSL write failed - closing connection\n");
+                    ERR_print_errors(bio_err);
+                    close_connection (c);
+                    break;
+                }
                 return;
             }
-            l = e_ssl;
-            e = APR_SUCCESS;
+            l = e;
         }
         else
 #endif
+        {
             e = apr_socket_send(c->aprsock, request + c->rwrote, &l);
-
-        if (e != APR_SUCCESS && !APR_STATUS_IS_EAGAIN(e)) {
-            epipe++;
-            printf("Send request failed!\n");
-            close_connection(c);
-            return;
+            if (e != APR_SUCCESS && !l) {
+                if (!APR_STATUS_IS_EAGAIN(e)) {
+                    epipe++;
+                    printf("Send request failed!\n");
+                    close_connection(c);
+                }
+                else {
+                    set_polled_events(c, APR_POLLOUT);
+                }
+                return;
+            }
         }
         totalposted += l;
         c->rwrote += l;
@@ -823,6 +938,16 @@ static void output_results(int sig)
     if (is_ssl && ssl_info) {
         printf("SSL/TLS Protocol:       %s\n", ssl_info);
     }
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+    if (is_ssl && ssl_tmp_key) {
+        printf("Server Temp Key:        %s\n", ssl_tmp_key);
+    }
+#endif
+#ifdef HAVE_TLSEXT
+    if (is_ssl && tls_sni) {
+        printf("TLS Server Name:        %s\n", tls_sni);
+    }
+#endif
 #endif
     printf("\n");
     printf("Document Path:          %s\n", path);
@@ -1224,7 +1349,7 @@ static void start_connect(struct connection * c)
     apr_status_t rv;
 
     if (!(started < requests))
-    return;
+        return;
 
     c->read = 0;
     c->bread = 0;
@@ -1285,12 +1410,18 @@ static void start_connect(struct connection * c)
         ssl_rand_seed();
         apr_os_sock_get(&fd, c->aprsock);
         bio = BIO_new_socket(fd, BIO_NOCLOSE);
+        BIO_set_nbio(bio, 1);
         SSL_set_bio(c->ssl, bio, bio);
         SSL_set_connect_state(c->ssl);
         if (verbosity >= 4) {
             BIO_set_callback(bio, ssl_print_cb);
             BIO_set_callback_arg(bio, (void *)bio_err);
         }
+#ifdef HAVE_TLSEXT
+        if (tls_sni) {
+            SSL_set_tlsext_host_name(c->ssl, tls_sni);
+        }
+#endif
     } else {
         c->ssl = NULL;
     }
@@ -1399,6 +1530,7 @@ static void read_connection(struct connection * c)
     int i;
 
     r = sizeof(buffer);
+read_more:
 #ifdef USE_SSL
     if (c->ssl) {
         status = SSL_read(c->ssl, buffer, r);
@@ -1427,8 +1559,13 @@ static void read_connection(struct connection * c)
                      && good == 0) {
                 return;
             }
-            else if (scode != SSL_ERROR_WANT_WRITE
-                     && scode != SSL_ERROR_WANT_READ) {
+            else if (scode == SSL_ERROR_WANT_READ) {
+                set_polled_events(c, APR_POLLIN);
+            }
+            else if (scode == SSL_ERROR_WANT_WRITE) {
+                set_polled_events(c, APR_POLLOUT);
+            }
+            else {
                 /* some fatal error: */
                 c->read = 0;
                 BIO_printf(bio_err, "SSL read failed (%d) - closing connection\n", scode);
@@ -1537,7 +1674,7 @@ static void read_connection(struct connection * c)
                  */
                 char *p, *q;
                 size_t len = 0;
-                p = strstr(c->cbuff, "Server:");
+                p = xstrcasestr(c->cbuff, "Server:");
                 q = servername;
                 if (p) {
                     p += 8;
@@ -1574,22 +1711,15 @@ static void read_connection(struct connection * c)
             }
             c->gotheader = 1;
             *s = 0;     /* terminate at end of header */
-            if (keepalive &&
-            (strstr(c->cbuff, "Keep-Alive")
-             || strstr(c->cbuff, "keep-alive"))) {  /* for benefit of MSIIS */
+            if (keepalive && xstrcasestr(c->cbuff, "Keep-Alive")) {
                 char *cl;
-                cl = strstr(c->cbuff, "Content-Length:");
-                /* handle NCSA, which sends Content-length: */
-                if (!cl)
-                    cl = strstr(c->cbuff, "Content-length:");
-                if (cl) {
-                    c->keepalive = 1;
+                c->keepalive = 1;
+                cl = xstrcasestr(c->cbuff, "Content-Length:");
+                if (cl && method != HEAD) {
                     /* response to HEAD doesn't have entity body */
-                    c->length = method != HEAD ? atoi(cl + 16) : 0;
+                    c->length = atoi(cl + 16);
                 }
-                /* The response may not have a Content-Length header */
-                if (!cl) {
-                    c->keepalive = 1;
+                else {
                     c->length = 0;
                 }
             }
@@ -1611,6 +1741,10 @@ static void read_connection(struct connection * c)
         /* outside header, everything we have read is entity body */
         c->bread += r;
         totalbread += r;
+    }
+    if (r == sizeof(buffer) && c->bread < c->length) {
+        /* read was full, try more immediately (nonblocking already) */
+        goto read_more;
     }
 
     if (c->keepalive && (c->bread >= c->length)) {
@@ -1645,6 +1779,7 @@ static void read_connection(struct connection * c)
         c->read = c->bread = 0;
         /* zero connect time with keep-alive */
         c->start = c->connect = lasttime = apr_time_now();
+        set_conn_state(c, STATE_CONNECTED);
         write_request(c);
     }
 }
@@ -1704,6 +1839,18 @@ static void test(void)
     else {
         /* Header overridden, no need to add, as it is already in hdrs */
     }
+
+#ifdef HAVE_TLSEXT
+    if (is_ssl && tls_use_sni) {
+        apr_ipsubnet_t *ip;
+        if (((tls_sni = opt_host) || (tls_sni = hostname)) &&
+            (!*tls_sni || apr_ipsubnet_create(&ip, tls_sni, NULL,
+                                               cntxt) == APR_SUCCESS)) {
+            /* IP not allowed in TLS SNI extension */
+            tls_sni = NULL;
+        }
+    }
+#endif
 
     if (!opt_useragent) {
         /* User-Agent: header not overridden, add default value to hdrs */
@@ -1879,6 +2026,7 @@ static void test(void)
             }
             if (rtnev & APR_POLLOUT) {
                 if (c->state == STATE_CONNECTING) {
+                    /* call connect() again to detect errors */
                     rv = apr_socket_connect(c->aprsock, destsa);
                     if (rv != APR_SUCCESS) {
                         set_conn_state(c, STATE_UNCONNECTED);
@@ -1903,7 +2051,14 @@ static void test(void)
                     }
                 }
                 else {
-                    write_request(c);
+                    /* POLLOUT is one shot */
+                    set_polled_events(c, APR_POLLIN);
+                    if (c->state == STATE_READ) {
+                        read_connection(c);
+                    }
+                    else {
+                        write_request(c);
+                    }
                 }
             }
         }
@@ -1997,15 +2152,24 @@ static void usage(const char *progname)
 #define SSL2_HELP_MSG ""
 #endif
 
+#ifndef OPENSSL_NO_SSL3
+#define SSL3_HELP_MSG "SSL3, "
+#else
+#define SSL3_HELP_MSG ""
+#endif
+
 #ifdef HAVE_TLSV1_X
 #define TLS1_X_HELP_MSG ", TLS1.1, TLS1.2"
 #else
 #define TLS1_X_HELP_MSG ""
 #endif
 
+#ifdef HAVE_TLSEXT
+    fprintf(stderr, "    -I              Disable TLS Server Name Indication (SNI) extension\n");
+#endif
     fprintf(stderr, "    -Z ciphersuite  Specify SSL/TLS cipher suite (See openssl ciphers)\n");
     fprintf(stderr, "    -f protocol     Specify SSL/TLS protocol\n");
-    fprintf(stderr, "                    (" SSL2_HELP_MSG "SSL3, TLS1" TLS1_X_HELP_MSG " or ALL)\n");
+    fprintf(stderr, "                    (" SSL2_HELP_MSG SSL3_HELP_MSG "TLS1" TLS1_X_HELP_MSG " or ALL)\n");
 #endif
     exit(EINVAL);
 }
@@ -2127,6 +2291,14 @@ int main(int argc, const char * const argv[])
     apr_getopt_t *opt;
     const char *opt_arg;
     char c;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    int max_prot = TLS1_2_VERSION;
+#ifndef OPENSSL_NO_SSL3
+    int min_prot = SSL3_VERSION;
+#else
+    int min_prot = TLS1_VERSION;
+#endif
+#endif /* #if OPENSSL_VERSION_NUMBER >= 0x10100000L */
 #ifdef USE_SSL
     AB_SSL_METHOD_CONST SSL_METHOD *meth = SSLv23_client_method();
 #endif
@@ -2166,7 +2338,7 @@ int main(int argc, const char * const argv[])
     myhost = NULL; /* 0.0.0.0 or :: */
 
     apr_getopt_init(&opt, cntxt, argc, argv);
-    while ((status = apr_getopt(opt, "n:c:t:s:b:T:p:u:v:lrkVhwix:y:z:C:H:P:A:g:X:de:SqB:m:"
+    while ((status = apr_getopt(opt, "n:c:t:s:b:T:p:u:v:lrkVhwiIx:y:z:C:H:P:A:g:X:de:SqB:m:"
 #ifdef USE_SSL
             "Z:f:"
 #endif
@@ -2285,7 +2457,16 @@ int main(int argc, const char * const argv[])
                  * allow override of some of the common headers that ab adds
                  */
                 if (strncasecmp(opt_arg, "Host:", 5) == 0) {
-                    opt_host = 1;
+                    char *host;
+                    apr_size_t len;
+                    opt_arg += 5;
+                    while (apr_isspace(*opt_arg))
+                        opt_arg++;
+                    len = strlen(opt_arg);
+                    host = strdup(opt_arg);
+                    while (len && apr_isspace(host[len-1]))
+                        host[--len] = '\0';
+                    opt_host = host;
                 } else if (strncasecmp(opt_arg, "Accept:", 7) == 0) {
                     opt_accept = 1;
                 } else if (strncasecmp(opt_arg, "User-Agent:", 11) == 0) {
@@ -2335,23 +2516,32 @@ int main(int argc, const char * const argv[])
             case 'B':
                 myhost = apr_pstrdup(cntxt, opt_arg);
                 break;
-#ifdef USE_SSL
-            case 'Z':
-                ssl_cipher = strdup(opt_arg);
-                break;
             case 'm':
                 method = CUSTOM_METHOD;
                 method_str[CUSTOM_METHOD] = strdup(opt_arg);
                 break;
+#ifdef USE_SSL
+            case 'Z':
+                ssl_cipher = strdup(opt_arg);
+                break;
             case 'f':
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
                 if (strncasecmp(opt_arg, "ALL", 3) == 0) {
                     meth = SSLv23_client_method();
 #ifndef OPENSSL_NO_SSL2
                 } else if (strncasecmp(opt_arg, "SSL2", 4) == 0) {
                     meth = SSLv2_client_method();
+#ifdef HAVE_TLSEXT
+                    tls_use_sni = 0;
 #endif
+#endif
+#ifndef OPENSSL_NO_SSL3
                 } else if (strncasecmp(opt_arg, "SSL3", 4) == 0) {
                     meth = SSLv3_client_method();
+#ifdef HAVE_TLSEXT
+                    tls_use_sni = 0;
+#endif
+#endif
 #ifdef HAVE_TLSV1_X
                 } else if (strncasecmp(opt_arg, "TLS1.1", 6) == 0) {
                     meth = TLSv1_1_client_method();
@@ -2361,7 +2551,37 @@ int main(int argc, const char * const argv[])
                 } else if (strncasecmp(opt_arg, "TLS1", 4) == 0) {
                     meth = TLSv1_client_method();
                 }
+#else /* #if OPENSSL_VERSION_NUMBER < 0x10100000L */
+                meth = TLS_client_method();
+                if (strncasecmp(opt_arg, "ALL", 3) == 0) {
+                    max_prot = TLS1_2_VERSION;
+#ifndef OPENSSL_NO_SSL3
+                    min_prot = SSL3_VERSION;
+#else
+                    min_prot = TLS1_VERSION;
+#endif
+#ifndef OPENSSL_NO_SSL3
+                } else if (strncasecmp(opt_arg, "SSL3", 4) == 0) {
+                    max_prot = SSL3_VERSION;
+                    min_prot = SSL3_VERSION;
+#endif
+                } else if (strncasecmp(opt_arg, "TLS1.1", 6) == 0) {
+                    max_prot = TLS1_1_VERSION;
+                    min_prot = TLS1_1_VERSION;
+                } else if (strncasecmp(opt_arg, "TLS1.2", 6) == 0) {
+                    max_prot = TLS1_2_VERSION;
+                    min_prot = TLS1_2_VERSION;
+                } else if (strncasecmp(opt_arg, "TLS1", 4) == 0) {
+                    max_prot = TLS1_VERSION;
+                    min_prot = TLS1_VERSION;
+                }
+#endif /* #if OPENSSL_VERSION_NUMBER < 0x10100000L */
                 break;
+#ifdef HAVE_TLSEXT
+            case 'I':
+                tls_use_sni = 0;
+                break;
+#endif
 #endif
         }
     }
@@ -2405,7 +2625,9 @@ int main(int argc, const char * const argv[])
 #ifdef RSAREF
     R_malloc_init();
 #else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     CRYPTO_malloc_init();
+#endif
 #endif
     SSL_load_error_strings();
     SSL_library_init();
@@ -2418,6 +2640,10 @@ int main(int argc, const char * const argv[])
         exit(1);
     }
     SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    SSL_CTX_set_max_proto_version(ssl_ctx, max_prot);
+    SSL_CTX_set_min_proto_version(ssl_ctx, min_prot);
+#endif
 #ifdef SSL_MODE_RELEASE_BUFFERS
     /* Keep memory usage as low as possible */
     SSL_CTX_set_mode (ssl_ctx, SSL_MODE_RELEASE_BUFFERS);

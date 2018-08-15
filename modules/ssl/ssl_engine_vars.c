@@ -39,9 +39,9 @@
 **  _________________________________________________________________
 */
 
-static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r, char *var);
+static char *ssl_var_lookup_ssl(apr_pool_t *p, const SSLConnRec *sslconn, request_rec *r, char *var);
 static char *ssl_var_lookup_ssl_cert(apr_pool_t *p, request_rec *r, X509 *xs, char *var);
-static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *var);
+static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, const char *var);
 static char *ssl_var_lookup_ssl_cert_san(apr_pool_t *p, X509 *xs, char *var);
 static char *ssl_var_lookup_ssl_cert_valid(apr_pool_t *p, ASN1_TIME *tm);
 static char *ssl_var_lookup_ssl_cert_remain(apr_pool_t *p, ASN1_TIME *tm);
@@ -49,15 +49,25 @@ static char *ssl_var_lookup_ssl_cert_serial(apr_pool_t *p, X509 *xs);
 static char *ssl_var_lookup_ssl_cert_chain(apr_pool_t *p, STACK_OF(X509) *sk, char *var);
 static char *ssl_var_lookup_ssl_cert_rfc4523_cea(apr_pool_t *p, SSL *ssl);
 static char *ssl_var_lookup_ssl_cert_PEM(apr_pool_t *p, X509 *xs);
-static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, conn_rec *c);
-static char *ssl_var_lookup_ssl_cipher(apr_pool_t *p, conn_rec *c, char *var);
+static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, const SSLConnRec *sslconn);
+static char *ssl_var_lookup_ssl_cipher(apr_pool_t *p, const SSLConnRec *sslconn, char *var);
 static void  ssl_var_lookup_ssl_cipher_bits(SSL *ssl, int *usekeysize, int *algkeysize);
 static char *ssl_var_lookup_ssl_version(apr_pool_t *p, char *var);
 static char *ssl_var_lookup_ssl_compress_meth(SSL *ssl);
 
+static const SSLConnRec *ssl_get_effective_config(conn_rec *c)
+{
+    const SSLConnRec *sslconn = myConnConfig(c);
+    if (!(sslconn && sslconn->ssl) && c->master) {
+        /* use master connection if no SSL defined here */
+        sslconn = myConnConfig(c->master);
+    }
+    return sslconn;
+}
+
 static int ssl_is_https(conn_rec *c)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
+    const SSLConnRec *sslconn = ssl_get_effective_config(c);
     return sslconn && sslconn->ssl;
 }
 
@@ -73,7 +83,7 @@ static int ssl_is_https(conn_rec *c)
 static apr_status_t ssl_get_tls_cb(apr_pool_t *p, conn_rec *c, const char *type,
                                    unsigned char **buf, apr_size_t *size)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
+    const SSLConnRec *sslconn = ssl_get_effective_config(c);
     const char *prefix;
     apr_size_t preflen;
     const unsigned char *data;
@@ -104,7 +114,11 @@ static apr_status_t ssl_get_tls_cb(apr_pool_t *p, conn_rec *c, const char *type,
     else if (x != NULL) {
         const EVP_MD *md;
 
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
         md = EVP_get_digestbynid(OBJ_obj2nid(x->sig_alg->algorithm));
+#else
+        md = EVP_get_digestbynid(X509_get_signature_nid(x));
+#endif
         /* Override digest as specified by RFC 5929 section 4.1. */
         if (md == NULL || md == EVP_md5() || md == EVP_sha1()) {
             md = EVP_sha256();
@@ -144,9 +158,17 @@ static apr_array_header_t *expr_peer_ext_list_fn(ap_expr_eval_ctx_t *ctx,
 static const char *expr_var_fn(ap_expr_eval_ctx_t *ctx, const void *data)
 {
     char *var = (char *)data;
-    SSLConnRec *sslconn = myConnConfig(ctx->c);
+    const SSLConnRec *sslconn = ssl_get_effective_config(ctx->c);
 
-    return sslconn ? ssl_var_lookup_ssl(ctx->p, ctx->c, ctx->r, var) : NULL;
+    return sslconn ? ssl_var_lookup_ssl(ctx->p, sslconn, ctx->r, var) : NULL;
+}
+
+static const char *expr_func_fn(ap_expr_eval_ctx_t *ctx, const void *data,
+                                const char *arg)
+{
+    char *var = (char *)arg;
+
+    return var ? ssl_var_lookup(ctx->p, ctx->s, ctx->c, ctx->r, var) : NULL;
 }
 
 static int ssl_expr_lookup(ap_expr_lookup_parms *parms)
@@ -160,6 +182,15 @@ static int ssl_expr_lookup(ap_expr_lookup_parms *parms)
         if (strcEQn(parms->name, "SSL_", 4)) {
             *parms->func = expr_var_fn;
             *parms->data = parms->name + 4;
+            return OK;
+        }
+        break;
+    case AP_EXPR_FUNC_STRING:
+        /* Function SSL() is implemented by us.
+         */
+        if (strcEQ(parms->name, "SSL")) {
+            *parms->func = expr_func_fn;
+            *parms->data = NULL;
             return OK;
         }
         break;
@@ -264,8 +295,7 @@ char *ssl_var_lookup(apr_pool_t *p, server_rec *s, conn_rec *c, request_rec *r, 
             else if (strcEQ(var, "REMOTE_ADDR"))
                 result = r->useragent_ip;
             else if (strcEQ(var, "REMOTE_HOST"))
-                result = ap_get_remote_host(r->connection, r->per_dir_config,
-                                            REMOTE_NAME, NULL);
+                result = ap_get_useragent_host(r, REMOTE_NAME, NULL);
             else if (strcEQ(var, "REMOTE_IDENT"))
                 result = ap_get_remote_logname(r);
             else if (strcEQ(var, "REMOTE_USER"))
@@ -314,10 +344,10 @@ char *ssl_var_lookup(apr_pool_t *p, server_rec *s, conn_rec *c, request_rec *r, 
      * Connection stuff
      */
     if (result == NULL && c != NULL) {
-        SSLConnRec *sslconn = myConnConfig(c);
+        const SSLConnRec *sslconn = ssl_get_effective_config(c);
         if (strlen(var) > 4 && strcEQn(var, "SSL_", 4)
             && sslconn && sslconn->ssl)
-            result = ssl_var_lookup_ssl(p, c, r, var+4);
+            result = ssl_var_lookup_ssl(p, sslconn, r, var+4);
         else if (strcEQ(var, "HTTPS")) {
             if (sslconn && sslconn->ssl)
                 result = "on";
@@ -387,10 +417,9 @@ char *ssl_var_lookup(apr_pool_t *p, server_rec *s, conn_rec *c, request_rec *r, 
     return (char *)result;
 }
 
-static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r,
-                                char *var)
+static char *ssl_var_lookup_ssl(apr_pool_t *p, const SSLConnRec *sslconn, 
+                                request_rec *r, char *var)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
     char *result;
     X509 *xs;
     STACK_OF(X509) *sk;
@@ -409,7 +438,7 @@ static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r,
         char buf[MODSSL_SESSION_ID_STRING_LEN];
         SSL_SESSION *pSession = SSL_get_session(ssl);
         if (pSession) {
-            unsigned char *id;
+            IDCONST unsigned char *id;
             unsigned int idlen;
 
 #ifdef OPENSSL_NO_SSL_INTERN
@@ -430,7 +459,7 @@ static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r,
             result = "Initial";
     }
     else if (ssl != NULL && strlen(var) >= 6 && strcEQn(var, "CIPHER", 6)) {
-        result = ssl_var_lookup_ssl_cipher(p, c, var+6);
+        result = ssl_var_lookup_ssl_cipher(p, sslconn, var+6);
     }
     else if (ssl != NULL && strlen(var) > 18 && strcEQn(var, "CLIENT_CERT_CHAIN_", 18)) {
         sk = SSL_get_peer_cert_chain(ssl);
@@ -440,7 +469,7 @@ static char *ssl_var_lookup_ssl(apr_pool_t *p, conn_rec *c, request_rec *r,
         result = ssl_var_lookup_ssl_cert_rfc4523_cea(p, ssl);
     }
     else if (ssl != NULL && strcEQ(var, "CLIENT_VERIFY")) {
-        result = ssl_var_lookup_ssl_cert_verify(p, c);
+        result = ssl_var_lookup_ssl_cert_verify(p, sslconn);
     }
     else if (ssl != NULL && strlen(var) > 7 && strcEQn(var, "CLIENT_", 7)) {
         if ((xs = SSL_get_peer_certificate(ssl)) != NULL) {
@@ -574,13 +603,25 @@ static char *ssl_var_lookup_ssl_cert(apr_pool_t *p, request_rec *r, X509 *xs,
         resdup = FALSE;
     }
     else if (strcEQ(var, "A_SIG")) {
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
         nid = OBJ_obj2nid((ASN1_OBJECT *)(xs->cert_info->signature->algorithm));
+#else
+        const ASN1_OBJECT *paobj;
+        X509_ALGOR_get0(&paobj, NULL, NULL, X509_get0_tbs_sigalg(xs));
+        nid = OBJ_obj2nid(paobj);
+#endif
         result = apr_pstrdup(p,
                              (nid == NID_undef) ? "UNKNOWN" : OBJ_nid2ln(nid));
         resdup = FALSE;
     }
     else if (strcEQ(var, "A_KEY")) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         nid = OBJ_obj2nid((ASN1_OBJECT *)(xs->cert_info->key->algor->algorithm));
+#else
+        ASN1_OBJECT *paobj;
+        X509_PUBKEY_get0_param(&paobj, NULL, 0, NULL, X509_get_X509_PUBKEY(xs));
+        nid = OBJ_obj2nid(paobj);
+#endif
         result = apr_pstrdup(p,
                              (nid == NID_undef) ? "UNKNOWN" : OBJ_nid2ln(nid));
         resdup = FALSE;
@@ -621,15 +662,23 @@ static const struct {
     { NULL,    0,                          0 }
 };
 
-static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *var)
+static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname,
+                                        const char *var)
 {
-    char *result, *ptr;
+    const char *ptr;
+    char *result;
     X509_NAME_ENTRY *xsne;
-    int i, j, n, idx = 0;
+    int i, j, n, idx = 0, raw = 0;
     apr_size_t varlen;
 
+    ptr = ap_strrchr_c(var, '_');
+    if (ptr && ptr > var && strcmp(ptr + 1, "RAW") == 0) {
+        var = apr_pstrmemdup(p, var, ptr - var);
+        raw = 1;
+    }
+    
     /* if an _N suffix is used, find the Nth attribute of given name */
-    ptr = strchr(var, '_');
+    ptr = ap_strchr_c(var, '_');
     if (ptr != NULL && strspn(ptr + 1, "0123456789") == strlen(ptr + 1)) {
         idx = atoi(ptr + 1);
         varlen = ptr - var;
@@ -642,16 +691,13 @@ static char *ssl_var_lookup_ssl_cert_dn(apr_pool_t *p, X509_NAME *xsname, char *
     for (i = 0; ssl_var_lookup_ssl_cert_dn_rec[i].name != NULL; i++) {
         if (strEQn(var, ssl_var_lookup_ssl_cert_dn_rec[i].name, varlen)
             && strlen(ssl_var_lookup_ssl_cert_dn_rec[i].name) == varlen) {
-            for (j = 0; j < sk_X509_NAME_ENTRY_num((STACK_OF(X509_NAME_ENTRY) *)
-                                                   xsname->entries);
-                 j++) {
-                xsne = sk_X509_NAME_ENTRY_value((STACK_OF(X509_NAME_ENTRY) *)
-                                                xsname->entries, j);
+            for (j = 0; j < X509_NAME_entry_count(xsname); j++) {
+                xsne = X509_NAME_get_entry(xsname, j);
 
                 n =OBJ_obj2nid((ASN1_OBJECT *)X509_NAME_ENTRY_get_object(xsne));
 
                 if (n == ssl_var_lookup_ssl_cert_dn_rec[i].nid && idx-- == 0) {
-                    result = modssl_X509_NAME_ENTRY_to_string(p, xsne);
+                    result = modssl_X509_NAME_ENTRY_to_string(p, xsne, raw);
                     break;
                 }
             }
@@ -849,9 +895,9 @@ static char *ssl_var_lookup_ssl_cert_PEM(apr_pool_t *p, X509 *xs)
     return result;
 }
 
-static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, conn_rec *c)
+static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, 
+                                            const SSLConnRec *sslconn)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
     char *result;
     long vrc;
     const char *verr;
@@ -885,9 +931,9 @@ static char *ssl_var_lookup_ssl_cert_verify(apr_pool_t *p, conn_rec *c)
     return result;
 }
 
-static char *ssl_var_lookup_ssl_cipher(apr_pool_t *p, conn_rec *c, char *var)
+static char *ssl_var_lookup_ssl_cipher(apr_pool_t *p, 
+                                       const SSLConnRec *sslconn, char *var)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
     char *result;
     BOOL resdup;
     int usekeysize, algkeysize;
@@ -950,7 +996,6 @@ static char *ssl_var_lookup_ssl_version(apr_pool_t *p, char *var)
 static void extract_dn(apr_table_t *t, apr_hash_t *nids, const char *pfx,
                        X509_NAME *xn, apr_pool_t *p)
 {
-    STACK_OF(X509_NAME_ENTRY) *ents = xn->entries;
     X509_NAME_ENTRY *xsne;
     apr_hash_t *count;
     int i, nid;
@@ -960,10 +1005,9 @@ static void extract_dn(apr_table_t *t, apr_hash_t *nids, const char *pfx,
     count = apr_hash_make(p);
 
     /* For each RDN... */
-    for (i = 0; i < sk_X509_NAME_ENTRY_num(ents); i++) {
+    for (i = 0; i < X509_NAME_entry_count(xn); i++) {
          const char *tag;
-
-         xsne = sk_X509_NAME_ENTRY_value(ents, i);
+         xsne = X509_NAME_get_entry(xn, i);
 
          /* Retrieve the nid, and check whether this is one of the nids
           * which are to be extracted. */
@@ -987,7 +1031,7 @@ static void extract_dn(apr_table_t *t, apr_hash_t *nids, const char *pfx,
                  apr_hash_set(count, &nid, sizeof nid, dup);
                  key = apr_pstrcat(p, pfx, tag, NULL);
              }
-             value = modssl_X509_NAME_ENTRY_to_string(p, xsne);
+             value = modssl_X509_NAME_ENTRY_to_string(p, xsne, 0);
              apr_table_setn(t, key, value);
          }
     }
@@ -1100,7 +1144,7 @@ static int dump_extn_value(BIO *bio, ASN1_OCTET_STRING *str)
 apr_array_header_t *ssl_ext_list(apr_pool_t *p, conn_rec *c, int peer,
                                  const char *extension)
 {
-    SSLConnRec *sslconn = myConnConfig(c);
+    const SSLConnRec *sslconn = ssl_get_effective_config(c);
     SSL *ssl = NULL;
     apr_array_header_t *array = NULL;
     X509 *xs = NULL;
@@ -1130,14 +1174,14 @@ apr_array_header_t *ssl_ext_list(apr_pool_t *p, conn_rec *c, int peer,
     }
 
     count = X509_get_ext_count(xs);
-    /* Create an array large enough to accomodate every extension. This is
+    /* Create an array large enough to accommodate every extension. This is
      * likely overkill, but safe.
      */
     array = apr_array_make(p, count, sizeof(char *));
     for (j = 0; j < count; j++) {
         X509_EXTENSION *ext = X509_get_ext(xs, j);
 
-        if (OBJ_cmp(ext->object, oid) == 0) {
+        if (OBJ_cmp(X509_EXTENSION_get_object(ext), oid) == 0) {
             BIO *bio = BIO_new(BIO_s_mem());
 
             /* We want to obtain a string representation of the extensions
@@ -1227,7 +1271,7 @@ static const char *ssl_var_log_handler_x(request_rec *r, char *a);
  */
 void ssl_var_log_config_register(apr_pool_t *p)
 {
-    static APR_OPTIONAL_FN_TYPE(ap_register_log_handler) *log_pfn_register;
+    APR_OPTIONAL_FN_TYPE(ap_register_log_handler) *log_pfn_register;
 
     log_pfn_register = APR_RETRIEVE_OPTIONAL_FN(ap_register_log_handler);
 
@@ -1244,7 +1288,7 @@ void ssl_var_log_config_register(apr_pool_t *p)
  */
 static const char *ssl_var_log_handler_c(request_rec *r, char *a)
 {
-    SSLConnRec *sslconn = myConnConfig(r->connection);
+    const SSLConnRec *sslconn = ssl_get_effective_config(r->connection);
     char *result;
 
     if (sslconn == NULL || sslconn->ssl == NULL)

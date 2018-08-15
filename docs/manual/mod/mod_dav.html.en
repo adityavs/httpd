@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
@@ -55,15 +55,15 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#davdepthinfinity">DavDepthInfinity</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#davmintimeout">DavMinTimeout</a></li>
 </ul>
-<h3>See also</h3>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_dav">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_dav">Report a bug</a></li></ul><h3>See also</h3>
 <ul class="seealso">
 <li><code class="directive"><a href="../mod/mod_dav_fs.html#davlockdb">DavLockDB</a></code></li>
 <li><code class="directive"><a href="../mod/core.html#limitxmlrequestbody">LimitXMLRequestBody</a></code></li>
 <li><a href="http://www.webdav.org">WebDAV Resources</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="example" id="example">Enabling WebDAV</a></h2>
+<h2><a name="example" id="example">Enabling WebDAV</a><a title="Permanent link" href="#example" class="permalink">&para;</a></h2>
     <p>To enable <code class="module"><a href="../mod/mod_dav.html">mod_dav</a></code>, add the following to a
     container in your <code>httpd.conf</code> file:</p>
 
@@ -113,7 +113,7 @@
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Security Issues</a></h2>
+<h2><a name="security" id="security">Security Issues</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
 
     <p>Since DAV access methods allow remote clients to manipulate
     files on the server, you must take particular care to assure that
@@ -151,7 +151,7 @@
     DAV access to untrusted users.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="complex" id="complex">Complex Configurations</a></h2>
+<h2><a name="complex" id="complex">Complex Configurations</a><a title="Permanent link" href="#complex" class="permalink">&para;</a></h2>
 
     <p>One common request is to use <code class="module"><a href="../mod/mod_dav.html">mod_dav</a></code> to
     manipulate dynamic files (PHP scripts, CGI scripts, etc).  This is
@@ -175,7 +175,7 @@ Alias "/php-source" "/home/gstein/php_files"
     client to manipulate them.</p>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="Dav" id="Dav">Dav</a> <a name="dav" id="dav">Directive</a></h2>
+<div class="directive-section"><h2><a name="Dav" id="Dav">Dav</a> <a name="dav" id="dav">Directive</a><a title="Permanent link" href="#dav" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enable WebDAV HTTP methods</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>Dav On|Off|<var>provider-name</var></code></td></tr>
@@ -204,7 +204,7 @@ Alias "/php-source" "/home/gstein/php_files"
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DavDepthInfinity" id="DavDepthInfinity">DavDepthInfinity</a> <a name="davdepthinfinity" id="davdepthinfinity">Directive</a></h2>
+<div class="directive-section"><h2><a name="DavDepthInfinity" id="DavDepthInfinity">DavDepthInfinity</a> <a name="davdepthinfinity" id="davdepthinfinity">Directive</a><a title="Permanent link" href="#davdepthinfinity" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Allow PROPFIND, Depth: Infinity requests</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>DavDepthInfinity on|off</code></td></tr>
@@ -220,7 +220,7 @@ Alias "/php-source" "/home/gstein/php_files"
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DavMinTimeout" id="DavMinTimeout">DavMinTimeout</a> <a name="davmintimeout" id="davmintimeout">Directive</a></h2>
+<div class="directive-section"><h2><a name="DavMinTimeout" id="DavMinTimeout">DavMinTimeout</a> <a name="davmintimeout" id="davmintimeout">Directive</a><a title="Permanent link" href="#davmintimeout" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Minimum amount of time the server holds a lock on
 a DAV resource</td></tr>
@@ -272,7 +272,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_dav.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

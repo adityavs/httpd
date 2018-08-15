@@ -18,7 +18,7 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Programs</a></div><div id="page-content"><div id="preamble"><h1>htdbm - Manipulate DBM password databases</h1>
@@ -39,10 +39,10 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#examples">Examples</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#security">Security Considerations</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#restrictions">Restrictions</a></li>
-</ul><h3>See also</h3><ul class="seealso"><li><code class="program"><a href="../programs/httpd.html">httpd</a></code></li><li><code class="program"><a href="../programs/dbmmanage.html">dbmmanage</a></code></li><li><code class="module"><a href="../mod/mod_authn_dbm.html">mod_authn_dbm</a></code></li></ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+</ul><h3>See also</h3><ul class="seealso"><li><code class="program"><a href="../programs/httpd.html">httpd</a></code></li><li><code class="program"><a href="../programs/dbmmanage.html">dbmmanage</a></code></li><li><code class="module"><a href="../mod/mod_authn_dbm.html">mod_authn_dbm</a></code></li><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="synopsis" id="synopsis">Synopsis</a></h2>
+<h2><a name="synopsis" id="synopsis">Synopsis</a><a title="Permanent link" href="#synopsis" class="permalink">&para;</a></h2>
     <p><code><strong>htdbm</strong>
     [ -<strong>T</strong><var>DBTYPE</var> ]
     [ -<strong>i</strong> ]
@@ -128,10 +128,10 @@
 
     <p><code><strong>htdbm</strong> -<strong>l</strong>
     [ -<strong>T</strong><var>DBTYPE</var> ]
-    </code></p>
+    <var>filename</var></code></p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="options" id="options">Options</a></h2>
+<h2><a name="options" id="options">Options</a><a title="Permanent link" href="#options" class="permalink">&para;</a></h2>
     <dl>
     <dt><code>-b</code></dt>
     <dd>Use batch mode; <em>i.e.</em>, get the password from the command line
@@ -222,7 +222,7 @@
     </dl>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="bugs" id="bugs">Bugs</a></h2>
+<h2><a name="bugs" id="bugs">Bugs</a><a title="Permanent link" href="#bugs" class="permalink">&para;</a></h2>
     <p>One should be aware that there are a number of different DBM file
     formats in existence, and with all likelihood, libraries for more than
     one format may exist on your system. The three primary examples are
@@ -239,7 +239,7 @@
     Unix systems to see what format a DBM file is in.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="exit" id="exit">Exit Status</a></h2>
+<h2><a name="exit" id="exit">Exit Status</a><a title="Permanent link" href="#exit" class="permalink">&para;</a></h2>
     <p><code>htdbm</code> returns a zero status ("true") if the username and
     password have been successfully added or updated in the DBM File.
     <code>htdbm</code> returns <code>1</code> if it encounters some problem
@@ -253,7 +253,7 @@
     file.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="examples" id="examples">Examples</a></h2>
+<h2><a name="examples" id="examples">Examples</a><a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
     <div class="example"><p><code>
       htdbm /usr/local/etc/apache/.htdbm-users jsmith
     </code></p></div>
@@ -279,9 +279,23 @@
 
     <p>Encrypts the password from the command line (<code>Pwd4Steve</code>)
     using the MD5 algorithm, and stores it in the specified file.</p>
+
+    <p>To convert an existing text file <code>htpasswd</code>-generated
+    password file to a <code>dbm</code> file, use <code>awk</code> to
+    feed each line of that file into <code>htdbm</code>:</p>
+
+    <div class="example"><p><code>
+      htdbm -cbp passwords.dbm bogus bogus
+      awk &#8216;BEGIN { FS=&#8221;:&#8221; }; {system (&#8220;htdbm -bp passwords.dbm &#8221; $1 &#8221; &#8221; $2)}&#8217; passwords
+      htdbm -x bogus
+    </code></p></div>
+
+    <p>The first line creates a new password database with a temporary
+    placeholder entry, and the thrid line removes that placeholder.</p>
+
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Security Considerations</a></h2>
+<h2><a name="security" id="security">Security Considerations</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
     <p>Web password files such as those managed by <code>htdbm</code> should
     <em>not</em> be within the Web server's URI space -- that is, they should
     not be fetchable with a browser.</p>
@@ -302,7 +316,7 @@
     standards.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="restrictions" id="restrictions">Restrictions</a></h2>
+<h2><a name="restrictions" id="restrictions">Restrictions</a><a title="Permanent link" href="#restrictions" class="permalink">&para;</a></h2>
     <p>On the Windows platform, passwords encrypted with
     <code>htdbm</code> are limited to no more than <code>255</code>
     characters in length. Longer passwords will be truncated to 255
@@ -336,7 +350,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/programs/htdbm.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
@@ -51,19 +51,23 @@
 </ul><h3 class="directives">Directives</h3>
 <ul id="toc">
 <li><img alt="" src="../images/down.gif" /> <a href="#macro">&lt;Macro&gt;</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#macroignorebadnesting">MacroIgnoreBadNesting</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#macroignoreemptyargs">MacroIgnoreEmptyArgs</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#undefmacro">UndefMacro</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#use">Use</a></li>
 </ul>
-<ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_macro">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_macro">Report a bug</a></li></ul><h3>See also</h3>
+<ul class="seealso">
+<li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="usage" id="usage">Usage</a></h2>
+<h2><a name="usage" id="usage">Usage</a><a title="Permanent link" href="#usage" class="permalink">&para;</a></h2>
 
-<p>Macros are defined using <code class="directive">&lt;Macro&gt;</code> blocks, which contain the portion of
+<p>Macros are defined using <code class="directive"><a href="#macro">&lt;Macro&gt;</a></code> blocks, which contain the portion of
 your configuration that needs to be repeated, complete with variables
 for those parts that will need to be substituted.</p>
 
-<p>For example,  you might use a macro to define a <code class="directive">&lt;VirtualHost&gt;</code> block, in order to define
+<p>For example, you might use a macro to define a <code class="directive"><a href="../mod/core.html#virtualhost">&lt;VirtualHost&gt;</a></code> block, in order to define
 multiple similar virtual hosts:</p>
 
 <pre class="prettyprint lang-config">&lt;Macro VHost $name $domain&gt;
@@ -91,20 +95,21 @@ Use VHost apache apache.org
 UndefMacro VHost</pre>
 
 
-<p>At server startup time, each of these <code class="directive">Use</code>
+<p>At server startup time, each of these <code class="directive"><a href="#use">Use</a></code>
 invocations would be expanded into a full virtualhost, as
-described by the <code class="directive">Macro</code> definition.</p>
+described by the <code class="directive"><a href="#macro">&lt;Macro&gt;</a></code>
+definition.</p>
 
-<p>The <code class="directive">UndefMacro</code> directive is used so that later
-macros using the same variable names don't result in conflicting
-definitions.</p>
+<p>The <code class="directive"><a href="#undefmacro">UndefMacro</a></code> directive is
+used so that later macros using the same variable names don't result in
+conflicting definitions.</p>
 
 <p>A more elaborate version of this example may be seen below in the
 Examples section.</p>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="tips" id="tips">Tips</a></h2>
+<h2><a name="tips" id="tips">Tips</a><a title="Permanent link" href="#tips" class="permalink">&para;</a></h2>
 
 <p>Parameter names should begin with a sigil such as <code>$</code>,
 <code>%</code>, or <code>@</code>, so that they are clearly
@@ -133,7 +138,7 @@ surround the parameter in braces, to avoid confusion:</p>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="examples" id="examples">Examples</a></h2>
+<h2><a name="examples" id="examples">Examples</a><a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
 
 
 <h3>Virtual Host Definition</h3>
@@ -194,18 +199,19 @@ UndefMacro DirGroup</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="Macro" id="Macro">&lt;Macro&gt;</a> <a name="macro" id="macro">Directive</a></h2>
+<div class="directive-section"><h2><a name="Macro" id="Macro">&lt;Macro&gt;</a> <a name="macro" id="macro">Directive</a><a title="Permanent link" href="#macro" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Define a configuration file macro</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>
 &lt;Macro <var>name</var> [<var>par1</var> .. <var>parN</var>]&gt;
 ... &lt;/Macro&gt;</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>All</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_macro</td></tr>
 </table>
-    <p>The <code class="directive">Macro</code> directive controls the definition of
-    a macro within the server runtime configuration files.
+    <p>The <code class="directive">&lt;Macro&gt;</code> directive controls the
+    definition of a macro within the server runtime configuration files.
     The first argument is the name of the macro.
     Other arguments are parameters to the macro. It is good practice to prefix
     parameter names with any of '<code>$%@</code>', and not macro names
@@ -223,11 +229,34 @@ UndefMacro DirGroup</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="UndefMacro" id="UndefMacro">UndefMacro</a> <a name="undefmacro" id="undefmacro">Directive</a></h2>
+<div class="directive-section"><h2><a name="MacroIgnoreBadNesting" id="MacroIgnoreBadNesting">MacroIgnoreBadNesting</a> <a name="macroignorebadnesting" id="macroignorebadnesting">Directive</a><a title="Permanent link" href="#macroignorebadnesting" class="permalink">&para;</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Ignore warnings, and does not log, about bad nesting of Macros</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>MacroIgnoreBadNesting</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>All</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_macro</td></tr>
+</table>
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="MacroIgnoreEmptyArgs" id="MacroIgnoreEmptyArgs">MacroIgnoreEmptyArgs</a> <a name="macroignoreemptyargs" id="macroignoreemptyargs">Directive</a><a title="Permanent link" href="#macroignoreemptyargs" class="permalink">&para;</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Ignore warnings, and does not log, about empty Macro argument(s)</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>MacroIgnoreEmptyArgs</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>All</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_macro</td></tr>
+</table>
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="UndefMacro" id="UndefMacro">UndefMacro</a> <a name="undefmacro" id="undefmacro">Directive</a><a title="Permanent link" href="#undefmacro" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Undefine a macro</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>UndefMacro <var>name</var></code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>All</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_macro</td></tr>
 </table>
@@ -240,12 +269,13 @@ UndefMacro RestrictedAccessPolicy</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="Use" id="Use">Use</a> <a name="use" id="use">Directive</a></h2>
+<div class="directive-section"><h2><a name="Use" id="Use">Use</a> <a name="use" id="use">Directive</a><a title="Permanent link" href="#use" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Use a macro</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>Use <var>name</var> [<var>value1</var> ... <var>valueN</var>]
 </code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config, virtual host, directory</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>All</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_macro</td></tr>
 </table>
@@ -290,7 +320,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_macro.html
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

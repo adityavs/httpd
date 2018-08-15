@@ -359,6 +359,13 @@ static int send_handles_to_child(apr_pool_t *p,
     HANDLE os_start;
     HANDLE hScore;
 
+    if ((rv = apr_file_write_full(child_in, &my_generation,
+                                  sizeof(my_generation), NULL))
+            != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_CRIT, rv, ap_server_conf, APLOGNO(02964)
+                     "Parent: Unable to send its generation to the child");
+        return -1;
+    }
     if (!DuplicateHandle(hCurrentProcess, child_ready_event, hProcess, &hDup,
         EVENT_MODIFY_STATE | SYNCHRONIZE, FALSE, 0)) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, apr_get_os_error(), ap_server_conf, APLOGNO(00392)
@@ -996,7 +1003,7 @@ static void winnt_rewrite_args(process_rec *process)
      *   -k config
      *   -k uninstall
      *   -k stop
-     *   -k shutdown (same as -k stop). Maintained for backward compatability.
+     *   -k shutdown (same as -k stop). Maintained for backward compatibility.
      *
      * We can't leave this phase until we know our identity
      * and modify the command arguments appropriately.
@@ -1036,12 +1043,13 @@ static void winnt_rewrite_args(process_rec *process)
     {
         HANDLE filehand;
         HANDLE hproc = GetCurrentProcess();
+        DWORD BytesRead;
 
         /* This is the child */
         my_pid = GetCurrentProcessId();
         parent_pid = (DWORD) atol(pid);
 
-        /* Prevent holding open the (nonexistant) console */
+        /* Prevent holding open the (nonexistent) console */
         ap_real_exit_code = 0;
 
         /* The parent gave us stdin, we need to remember this
@@ -1073,6 +1081,16 @@ static void winnt_rewrite_args(process_rec *process)
          * already
          */
 
+        /* Read this child's generation number as soon as now,
+         * so that further hooks can query it.
+         */
+        if (!ReadFile(pipe, &my_generation, sizeof(my_generation),
+                      &BytesRead, (LPOVERLAPPED) NULL)
+                || (BytesRead != sizeof(my_generation))) {
+            ap_log_error(APLOG_MARK, APLOG_CRIT, apr_get_os_error(), NULL, APLOGNO(02965)
+                         "Child: Unable to retrieve my generation from the parent");
+            exit(APEXIT_CHILDINIT);
+        }
 
         /* The parent is responsible for providing the
          * COMPLETE ARGUMENTS REQUIRED to the child.
@@ -1416,10 +1434,8 @@ static int winnt_check_config(apr_pool_t *pconf, apr_pool_t *plog,
         if (startup) {
             ap_log_error(APLOG_MARK, APLOG_WARNING | APLOG_STARTUP, 0, NULL, APLOGNO(00439)
                          "WARNING: ThreadLimit of %d exceeds compile-time "
-                         "limit of", thread_limit);
-            ap_log_error(APLOG_MARK, APLOG_WARNING | APLOG_STARTUP, 0, NULL,
-                         " %d threads, decreasing to %d.",
-                         MAX_THREAD_LIMIT, MAX_THREAD_LIMIT);
+                         "limit of %d threads, decreasing to %d.",
+                         thread_limit, MAX_THREAD_LIMIT, MAX_THREAD_LIMIT);
         } else if (is_parent) {
             ap_log_error(APLOG_MARK, APLOG_WARNING, 0, s, APLOGNO(00440)
                          "ThreadLimit of %d exceeds compile-time limit "
@@ -1462,13 +1478,9 @@ static int winnt_check_config(apr_pool_t *pconf, apr_pool_t *plog,
         if (startup) {
             ap_log_error(APLOG_MARK, APLOG_WARNING | APLOG_STARTUP, 0, NULL, APLOGNO(00444)
                          "WARNING: ThreadsPerChild of %d exceeds ThreadLimit "
-                         "of", ap_threads_per_child);
-            ap_log_error(APLOG_MARK, APLOG_WARNING | APLOG_STARTUP, 0, NULL,
-                         " %d threads, decreasing to %d.",
-                         thread_limit, thread_limit);
-            ap_log_error(APLOG_MARK, APLOG_WARNING | APLOG_STARTUP, 0, NULL,
-                         " To increase, please see the ThreadLimit "
-                         "directive.");
+                         "of %d threads, decreasing to %d. To increase, please "
+                         "see the ThreadLimit directive.",
+                         ap_threads_per_child, thread_limit, thread_limit);
         } else if (is_parent) {
             ap_log_error(APLOG_MARK, APLOG_WARNING, 0, s, APLOGNO(00445)
                          "ThreadsPerChild of %d exceeds ThreadLimit "
@@ -1641,7 +1653,7 @@ static int winnt_open_logs(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, s
     if (ap_setup_listeners(s) < 1) {
         ap_log_error(APLOG_MARK, APLOG_ALERT|APLOG_STARTUP, 0,
                      NULL, APLOGNO(00451) "no listening sockets available, shutting down");
-        return DONE;
+        return !OK;
     }
 
     return OK;
@@ -1664,8 +1676,6 @@ static void winnt_child_init(apr_pool_t *pchild, struct server_rec *s)
 
         /* Done reading from the parent, close that channel */
         CloseHandle(pipe);
-
-        my_generation = ap_scoreboard_image->global->running_generation;
     }
     else {
         /* Single process mode - this lock doesn't even need to exist */
@@ -1758,8 +1768,6 @@ static void winnt_hooks(apr_pool_t *p)
     ap_hook_mpm(winnt_run, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_mpm_query(winnt_query, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_mpm_get_name(winnt_get_name, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_insert_network_bucket(winnt_insert_network_bucket, NULL, NULL,
-                                  APR_HOOK_MIDDLE);
 }
 
 AP_DECLARE_MODULE(mpm_winnt) = {

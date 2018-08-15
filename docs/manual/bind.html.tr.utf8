@@ -18,13 +18,14 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="./mod/">Modüller</a> | <a href="./mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="./glossary.html">Terimler</a> | <a href="./sitemap.html">Site Haritası</a></p>
 <p class="apache">Apache HTTP Sunucusu Sürüm 2.5</p>
-<img alt="" src="./images/feather.gif" /></div>
+<img alt="" src="./images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="./images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Sunucusu</a> &gt; <a href="http://httpd.apache.org/docs/">Belgeleme</a> &gt; <a href="./">Sürüm 2.5</a></div><div id="page-content"><div id="preamble"><h1>Adresleri ve Portları Dinleme</h1>
 <div class="toplang">
 <p><span>Mevcut Diller: </span><a href="./de/bind.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="./en/bind.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="./es/bind.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="./fr/bind.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="./ja/bind.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="./ko/bind.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -39,10 +40,10 @@
 <li><img alt="" src="./images/down.gif" /> <a href="#ipv6">IPv6 Adreslerin Durumu</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#protocol">Protokolü Listen ile Belirtme</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#virtualhost">Sanal Konaklarla Nasıl Çalışır?</a></li>
-</ul><h3>Ayrıca bakınız:</h3><ul class="seealso"><li><a href="vhosts/">Sanal Konaklar</a></li><li><a href="dns-caveats.html">DNS Konuları</a></li></ul><ul class="seealso"><li><a href="#comments_section">Yorum</a></li></ul></div>
+</ul><h3>Ayrıca bakınız:</h3><ul class="seealso"><li><a href="vhosts/">Sanal Konaklar</a></li><li><a href="dns-caveats.html">DNS Konuları</a></li><li><a href="#comments_section">Yorum</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="overview" id="overview">Genel Bakış</a></h2>
+<h2><a name="overview" id="overview">Genel Bakış</a><a title="Permanent link" href="#overview" class="permalink">&para;</a></h2>
     
 
     <table class="related"><tr><th>İlgili Modüller</th><th>İlgili Yönergeler</th></tr><tr><td><ul><li><code class="module"><a href="./mod/core.html">core</a></code></li><li><code class="module"><a href="./mod/mpm_common.html">mpm_common</a></code></li></ul></td><td><ul><li><code class="directive"><a href="./mod/core.html#virtualhost">&lt;VirtualHost&gt;</a></code></li><li><code class="directive"><a href="./mod/mpm_common.html#listen">Listen</a></code></li></ul></td></tr></table>
@@ -103,7 +104,7 @@
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="ipv6" id="ipv6">IPv6 Adreslerin Durumu</a></h2>
+<h2><a name="ipv6" id="ipv6">IPv6 Adreslerin Durumu</a><a title="Permanent link" href="#ipv6" class="permalink">&para;</a></h2>
     
 
     <p>IPv6’yı gerçekleyen platformların sayısı giderek artmaktadır. Bu
@@ -148,7 +149,7 @@
       seçenek FreeBSD, NetBSD ve OpenBSD’de öntanımlıdır.</p>
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="protocol" id="protocol">Protokolü Listen ile Belirtme</a></h2>
+<h2><a name="protocol" id="protocol">Protokolü Listen ile Belirtme</a><a title="Permanent link" href="#protocol" class="permalink">&para;</a></h2>
     
     <p><code class="directive"><a href="./mod/mpm_common.html#listen">Listen</a></code> yönergesinin isteğe
       bağlı ikinci değiştirgesi <var>protokol</var> çoğu yapılandırmada gerekli
@@ -166,7 +167,7 @@
     </code></p></div>
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="virtualhost" id="virtualhost">Sanal Konaklarla Nasıl Çalışır?</a></h2>
+<h2><a name="virtualhost" id="virtualhost">Sanal Konaklarla Nasıl Çalışır?</a><a title="Permanent link" href="#virtualhost" class="permalink">&para;</a></h2>
     
 
     <p><code class="directive"><a href="./mod/mpm_common.html#listen">Listen</a></code> yönergesi sanal
@@ -185,6 +186,7 @@
 <div class="bottomlang">
 <p><span>Mevcut Diller: </span><a href="./de/bind.html" hreflang="de" rel="alternate" title="Deutsch">&nbsp;de&nbsp;</a> |
 <a href="./en/bind.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="./es/bind.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="./fr/bind.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="./ja/bind.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="./ko/bind.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -207,7 +209,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/bind.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="./mod/">Modüller</a> | <a href="./mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="./glossary.html">Terimler</a> | <a href="./sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

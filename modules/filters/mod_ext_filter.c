@@ -161,7 +161,7 @@ static const char *parse_cmd(apr_pool_t *p, const char **args, ef_filter_t *filt
 
         ++*args; /* move past leading " */
         /* find true end of args string (accounting for escaped quotes) */
-        while (**args && (**args != '"' || (**args == '"' && escaping))) {
+        while (**args && (**args != '"' || escaping)) {
             if (escaping) {
                 escaping = 0;
             }
@@ -754,6 +754,13 @@ static int ef_unified_filter(ap_filter_t *f, apr_bucket_brigade *bb)
     {
         if (APR_BUCKET_IS_EOS(b)) {
             eos = b;
+            break;
+        }
+
+        if (AP_BUCKET_IS_ERROR(b)) {
+            apr_bucket *cpy;
+            apr_bucket_copy(b, &cpy);
+            APR_BRIGADE_INSERT_TAIL(bb_tmp, cpy);
             break;
         }
 

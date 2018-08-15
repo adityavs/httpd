@@ -7,9 +7,9 @@ PROGRAM_SOURCES      = modules.c
 PROGRAM_LDADD        = buildmark.o $(HTTPD_LDFLAGS) $(PROGRAM_DEPENDENCIES) $(HTTPD_LIBS) $(EXTRA_LIBS) $(AP_LIBS) $(LIBS)
 PROGRAM_PRELINK      = $(COMPILE) -c $(top_srcdir)/server/buildmark.c
 PROGRAM_DEPENDENCIES = \
-  server/libmain.la \
   $(BUILTIN_LIBS) \
   $(MPM_LIB) \
+  server/libmain.la \
   os/$(OS_DIR)/libos.la
 
 sbin_PROGRAMS   = $(PROGRAM_NAME)
@@ -18,6 +18,10 @@ INSTALL_TARGETS = install-conf install-htdocs install-error install-icons \
 	install-other install-cgi install-include install-suexec install-build \
 	install-man
 
+CLEAN_TARGETS  = check/bin/* check/build/config_vars.mk \
+	check/conf/$(PROGRAM_NAME).conf check/conf/magic check/conf/mime.types \
+	check/conf/extra/* check/include/* $(testcase_OBJECTS) $(testcase_STUBS) \
+	test/httpdunit.cases test/unit/*.o
 DISTCLEAN_TARGETS  = include/ap_config_auto.h include/ap_config_layout.h \
 	include/apache_probes.h \
 	modules.c config.cache config.log config.status build/config_vars.mk \
@@ -25,6 +29,9 @@ DISTCLEAN_TARGETS  = include/ap_config_auto.h include/ap_config_layout.h \
 	build/pkg/pkginfo build/config_vars.sh bsd_converted
 EXTRACLEAN_TARGETS = configure include/ap_config_auto.h.in generated_lists \
 	httpd.spec
+PHONY_TARGETS := check check-conf check-dirs check-include unittest-objdir
+
+TESTS = 
 
 include $(top_builddir)/build/rules.mk
 include $(top_srcdir)/build/program.mk
@@ -45,7 +52,7 @@ install-conf:
 	    	if [ -f $$i ] ; then \
 	    	( \
 	    		n_lm=`awk 'BEGIN {n=0} /@@LoadModule@@/ {n+=1} END {print n}' < $$i`; \
-	    		if test $$n_lm -eq 0 -o "x$(DSO_MODULES)" = "x"; then \
+	    		if test $$n_lm -eq 0 -o "x$(MPM_MODULES)$(DSO_MODULES)" = "x"; then \
 	    			sed -e 's#@@ServerRoot@@#$(prefix)#g' \
 	    				-e 's#@@Port@@#$(PORT)#g' \
 	    				-e 's#@@SSLPort@@#$(SSLPORT)#g' \
@@ -68,28 +75,38 @@ install-conf:
 	    			else \
 	    				have_cgid="0"; \
 	    			fi; \
+	    			for j in $(MPM_MODULES) "^EOL^"; do \
+	    				if test $$j != "^EOL^"; then \
+	    					if echo ",$(ENABLED_MPM_MODULE),"|$(EGREP) ",$$j," > /dev/null ; then \
+	    						loading_disabled=""; \
+	    					else \
+	    						loading_disabled="#"; \
+	    					fi; \
+						echo "$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
+					fi; \
+	    			done; \
 	    			for j in $(DSO_MODULES) "^EOL^"; do \
 	    				if test $$j != "^EOL^"; then \
 	    					if echo ",$(ENABLED_DSO_MODULES),"|$(EGREP) ",$$j," > /dev/null ; then \
 	    						loading_disabled=""; \
 	    					else \
 	    						loading_disabled="#"; \
+		    					if test "$(LOAD_ALL_MODULES)" = "yes"; then \
+		    						loading_disabled=""; \
+	    						fi; \
 	    					fi; \
-	    					if test "$(LOAD_ALL_MODULES)" = "yes"; then \
-	    						loading_disabled=""; \
-	    					fi; \
-							if test $$j = "cgid" -a "$$have_cgi" = "1"; then \
-								echo "<IfModule !mpm_prefork_module>"; \
-								echo "	$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
-								echo "</IfModule>"; \
-							elif test $$j = "cgi" -a "$$have_cgid" = "1"; then \
-								echo "<IfModule mpm_prefork_module>"; \
-								echo "	$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
-								echo "</IfModule>"; \
-							else \
-								echo "$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
-							fi; \
+						if test $$j = "cgid" -a "$$have_cgi" = "1"; then \
+							echo "<IfModule !mpm_prefork_module>"; \
+							echo "	$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
+							echo "</IfModule>"; \
+						elif test $$j = "cgi" -a "$$have_cgid" = "1"; then \
+							echo "<IfModule mpm_prefork_module>"; \
+							echo "	$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
+							echo "</IfModule>"; \
+						else \
+							echo "$${loading_disabled}LoadModule $${j}_module $(rel_libexecdir)/mod_$${j}.so"; \
 						fi; \
+					fi; \
 	    			done; \
 	    			sed -e '1,/@@LoadModule@@/d' \
 	    				-e '/@@LoadModule@@/d' \
@@ -118,7 +135,7 @@ install-conf:
 	fi
 
 # Create a sanitized config_vars.mk
-build/config_vars.out: build/config_vars.mk
+build/config_vars.out: build/config_vars.mk build/config_vars.sh
 	@$(SHELL) build/config_vars.sh < build/config_vars.mk > build/config_vars.out
 
 install-build: build/config_vars.out
@@ -223,6 +240,7 @@ INSTALL_HEADERS = \
 	$(srcdir)/modules/cache/cache_common.h \
 	$(srcdir)/modules/database/mod_dbd.h \
 	$(srcdir)/modules/dav/main/mod_dav.h \
+	$(srcdir)/modules/http2/mod_http2.h \
 	$(srcdir)/modules/filters/mod_include.h \
 	$(srcdir)/modules/filters/mod_xml2enc.h \
 	$(srcdir)/modules/generators/mod_cgi.h \
@@ -256,7 +274,7 @@ install-man:
 	  cd $(DESTDIR)$(manualdir) && find . -name ".svn" -type d -print | xargs rm -rf 2>/dev/null || true; \
 	fi
 
-install-suexec: install-suexec-binary install-suexec-$(INSTALL_SUEXEC)
+install-suexec: install-suexec-$(INSTALL_SUEXEC)
 
 install-suexec-binary:
 	@if test -f $(builddir)/support/suexec; then \
@@ -264,12 +282,12 @@ install-suexec-binary:
             $(INSTALL_PROGRAM) $(top_builddir)/support/suexec $(DESTDIR)$(sbindir); \
 	fi
 
-install-suexec-setuid:
+install-suexec-setuid: install-suexec-binary
 	@if test -f $(builddir)/support/suexec; then \
 	    chmod 4755 $(DESTDIR)$(sbindir)/suexec; \
 	fi
 
-install-suexec-caps:
+install-suexec-caps: install-suexec-binary
 	@if test -f $(builddir)/support/suexec; then \
             setcap 'cap_setuid,cap_setgid+pe' $(DESTDIR)$(sbindir)/suexec; \
 	fi
@@ -286,3 +304,185 @@ update-log-tags update-log-msg-tags:
 
 # XXX: This looks awfully platform-specific [read: bad form and style]
 include $(top_srcdir)/os/os2/core.mk
+
+#
+# In-tree Testing
+#
+
+# Installs the include/ header files into the ./check/ directory so we can use
+# them during `make check`.
+check-include: override includedir:=$(top_builddir)/check/include
+check-include: install-include
+
+# This is basically the same as install-conf, but we only care about the files
+# necessary to run the test suite, and the LoadModule lines point back to the
+# build tree. Configuration files will be installed to ./check/conf and pointed
+# to by ./check/apxs.
+check-conf:
+	@mkdir -p check/conf/extra; \
+	cd $(top_srcdir)/docs/conf; \
+	for i in mime.types magic; do \
+	    $(INSTALL_DATA) $$i $(top_builddir)/check/conf; \
+	done; \
+	for j in $(top_srcdir)/docs/conf $(top_builddir)/docs/conf ; do \
+	    cd $$j ; \
+	    for i in httpd.conf extra/*.conf; do \
+	        if [ -f $$i ] ; then \
+	        ( \
+	            n_lm=`awk 'BEGIN {n=0} /@@LoadModule@@/ {n+=1} END {print n}' < $$i`; \
+	            if test $$n_lm -eq 0 -o "x$(MPM_MODULES)$(DSO_MODULES)" = "x"; then \
+	                sed -e 's#@@ServerRoot@@#$(top_builddir)/check#g' \
+	                    -e 's#@@Port@@#$(PORT)#g' \
+	                    -e 's#@@SSLPort@@#$(SSLPORT)#g' \
+	                    -e 's#$(prefix)#$(top_builddir)/check#g' \
+	                    -e 's/^#ServerName /ServerName /' \
+	                    -e '/@@LoadModule@@/d' \
+	                    < $$i; \
+	            else \
+	                sed -n -e '/@@LoadModule@@/q' \
+	                    -e 's#@@ServerRoot@@#$(top_builddir)/check#g' \
+	                    -e 's#@@Port@@#$(PORT)#g' \
+	                    -e 's#@@SSLPort@@#$(SSLPORT)#g' \
+	                    -e 's#$(prefix)#$(top_builddir)/check#g' \
+	                    -e 's/^#ServerName /ServerName /' \
+	                    -e 'p' \
+	                    < $$i; \
+	                if echo " $(DSO_MODULES) "|$(EGREP) " cgi " > /dev/null ; then \
+	                    have_cgi="1"; \
+	                else \
+	                    have_cgi="0"; \
+	                fi; \
+	                if echo " $(DSO_MODULES) "|$(EGREP) " cgid " > /dev/null ; then \
+	                    have_cgid="1"; \
+	                else \
+	                    have_cgid="0"; \
+	                fi; \
+	                for j in $(MPM_MODULES) "^EOL^"; do \
+	                    path=$$(find "$(top_builddir)/server" -name "mod_$$j.so"); \
+	                    if test $$j != "^EOL^"; then \
+	                        if echo ",$(ENABLED_MPM_MODULE),"|$(EGREP) ",$$j," > /dev/null ; then \
+	                            loading_disabled=""; \
+	                        else \
+	                            loading_disabled="#"; \
+	                        fi; \
+	                    echo "$${loading_disabled}LoadModule $${j}_module $${path}"; \
+	                fi; \
+	                done; \
+	                for j in $(DSO_MODULES) "^EOL^"; do \
+	                    path=$$(find "$(top_builddir)/modules" -name "mod_$$j.so"); \
+	                    if test $$j != "^EOL^"; then \
+	                        if test $$j = "cgid" -a "$$have_cgi" = "1"; then \
+	                            echo "<IfModule !mpm_prefork_module>"; \
+	                            echo "	LoadModule $${j}_module $${path}"; \
+	                            echo "</IfModule>"; \
+	                        elif test $$j = "cgi" -a "$$have_cgid" = "1"; then \
+	                            echo "<IfModule mpm_prefork_module>"; \
+	                            echo "	LoadModule $${j}_module $${path}"; \
+	                            echo "</IfModule>"; \
+	                        else \
+	                            echo "LoadModule $${j}_module $${path}"; \
+	                        fi; \
+	                    fi; \
+	                done; \
+	                sed -e '1,/@@LoadModule@@/d' \
+	                    -e '/@@LoadModule@@/d' \
+	                    -e 's#@@ServerRoot@@#$(top_builddir)/check#g' \
+	                    -e 's#@@Port@@#$(PORT)#g' \
+	                    -e 's#@@SSLPort@@#$(SSLPORT)#g' \
+	                    -e 's#$(prefix)#$(top_builddir)/check#g' \
+	                    -e 's/^#ServerName /ServerName /' \
+	                    < $$i; \
+	            fi \
+	        ) > $(top_builddir)/check/conf/$$i; \
+	        chmod 0644 $(top_builddir)/check/conf/$$i; \
+	        if [ "$$i" = "httpd.conf" ]; then \
+	            mv "$(top_builddir)/check/conf/$$i" "$(top_builddir)/check/conf/$(PROGRAM_NAME).conf"; \
+	        fi; \
+	        fi; \
+	    done ; \
+	done ;
+
+# Sometimes (e.g. when MPM DSOs are enabled) the test suite runs a full
+# configuration check on our in-tree build. To pass, we have to have all of the
+# correct directories, even though they won't be used.
+check-dirs:
+	@mkdir -p check/htdocs check/logs check/bin
+
+check-binaries: check/bin/apxs check/bin/httpd check/bin/ab
+
+check/bin/httpd:
+	ln -s $(top_builddir)/httpd check/bin/httpd
+
+check/bin/ab:
+	ln -s $(top_builddir)/support/ab check/bin/ab
+
+# A version of apxs with the PREFIX overridden to point inside the install root
+check/bin/apxs:
+	mkdir -p check
+	sed -e 's#$(prefix)#$(top_builddir)/check#g' support/apxs > $@
+	chmod +x $@
+
+# A version of config_vars.mk with PREFIX and SBINDIR and BINDIR overridden.
+check/build/config_vars.mk: build/config_vars.out
+	mkdir -p check/build
+	cp $< $@
+	echo "prefix = $(top_builddir)/check" >> $@
+	echo "sbindir = $(top_builddir)/check/bin" >> $@
+	echo "bindir = $(top_builddir)/check/bin" >> $@
+
+# Generate config & modules etc from scratch any time a header file is
+# touched, so e.g. we don't get MMN mismatch against the modules built
+# in .../c-modules.
+$(TEST_SUITE_LOCATION)/Makefile: $(TEST_SUITE_LOCATION)/Makefile.PL $(INSTALL_HEADERS)
+	cd "$(TEST_SUITE_LOCATION)" && \
+	    perl Makefile.PL -apxs "$(top_builddir)/check/bin/apxs" && \
+	    ./t/TEST -clean && \
+	    ./t/TEST -config
+
+check-make: $(TEST_SUITE_LOCATION)/Makefile
+
+check-no:
+	@echo 'Re-run configure with the --with-test-suite option to enable in-tree tests.'
+	@false
+
+check-yes: check-include check-dirs check-conf check/build/config_vars.mk \
+	check-binaries $(TEST_SUITE_LOCATION)/Makefile
+	cd $(TEST_SUITE_LOCATION) && ./t/TEST $(TESTS)
+
+# Run the Apache::Test suite if it has been configured with --with-test-suite.
+check: check-$(WITH_TEST_SUITE)
+
+#
+# Unit Test Suite
+#
+
+# Make sure the object subdirectories we use exist in the build directory during
+# VPATH builds.
+unittest-objdir:
+	@mkdir -p test/unit
+
+# Normally I don't like wildcard sources, but for tests, autodiscovery is the
+# way to go.
+testcase_SOURCES := $(patsubst $(top_srcdir)/%,%,$(wildcard $(top_srcdir)/test/unit/*.c))
+testcase_OBJECTS := $(testcase_SOURCES:%.c=%.lo)
+testcase_STUBS   := $(testcase_SOURCES:%.c=%.tests)
+
+# Each testcase depends on the source file as well as the autogenerated .tests
+# stub.
+$(testcase_OBJECTS): %.lo: %.c %.tests | unittest-objdir
+
+$(testcase_STUBS): %.tests: %.c
+	$(top_srcdir)/build/httpdunit_gen_stubs.pl < "$<" > "$@"
+
+test/httpdunit.cases: $(testcase_SOURCES) | unittest-objdir
+	cat $^ | $(top_srcdir)/build/httpdunit_gen_cases.pl --declaration > $@
+	cat $^ | $(top_srcdir)/build/httpdunit_gen_cases.pl >> $@
+
+test/httpdunit.lo: test/httpdunit.c test/httpdunit.cases | unittest-objdir
+
+# httpdunit is only added to $(other_targets) if configure detects a working
+# libcheck on the system.
+httpdunit_OBJECTS := test/httpdunit.lo $(testcase_OBJECTS)
+$(httpdunit_OBJECTS): override LTCFLAGS += $(UNITTEST_CFLAGS)
+test/httpdunit: $(httpdunit_OBJECTS) $(PROGRAM_DEPENDENCIES) $(PROGRAM_OBJECTS)
+	$(LINK) $(httpdunit_OBJECTS) $(PROGRAM_OBJECTS) $(UNITTEST_LIBS) $(PROGRAM_LDADD)

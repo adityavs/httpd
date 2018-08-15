@@ -159,6 +159,32 @@ AP_DECLARE(int) ap_allow_overrides(request_rec *r);
 AP_DECLARE(const char *) ap_document_root(request_rec *r);
 
 /**
+ * Lookup the remote user agent's DNS name or IP address
+ * @ingroup get_remote_host
+ * @param req The current request
+ * @param type The type of lookup to perform.  One of:
+ * <pre>
+ *     REMOTE_HOST returns the hostname, or NULL if the hostname
+ *                 lookup fails.  It will force a DNS lookup according to the
+ *                 HostnameLookups setting.
+ *     REMOTE_NAME returns the hostname, or the dotted quad if the
+ *                 hostname lookup fails.  It will force a DNS lookup according
+ *                 to the HostnameLookups setting.
+ *     REMOTE_NOLOOKUP is like REMOTE_NAME except that a DNS lookup is
+ *                     never forced.
+ *     REMOTE_DOUBLE_REV will always force a DNS lookup, and also force
+ *                   a double reverse lookup, regardless of the HostnameLookups
+ *                   setting.  The result is the (double reverse checked)
+ *                   hostname, or NULL if any of the lookups fail.
+ * </pre>
+ * @param str_is_ip unless NULL is passed, this will be set to non-zero on
+ *        output when an IP address string is returned
+ * @return The remote hostname (based on the request useragent_ip)
+ */
+AP_DECLARE(const char *) ap_get_useragent_host(request_rec *req, int type,
+                                               int *str_is_ip);
+
+/**
  * Lookup the remote client's DNS name or IP address
  * @ingroup get_remote_host
  * @param conn The current connection
@@ -180,7 +206,7 @@ AP_DECLARE(const char *) ap_document_root(request_rec *r);
  * </pre>
  * @param str_is_ip unless NULL is passed, this will be set to non-zero on output when an IP address
  *        string is returned
- * @return The remote hostname
+ * @return The remote hostname (based on the connection client_ip)
  */
 AP_DECLARE(const char *) ap_get_remote_host(conn_rec *conn, void *dir_config, int type, int *str_is_ip);
 
@@ -226,6 +252,13 @@ AP_DECLARE(const char *) ap_get_server_name_for_url(request_rec *r);
  * @return The server's port
  */
 AP_DECLARE(apr_port_t) ap_get_server_port(const request_rec *r);
+
+/**
+ * Get the size of read buffers
+ * @param r The current request
+ * @return The read buffers size
+ */
+AP_DECLARE(apr_size_t) ap_get_read_buf_size(const request_rec *r);
 
 /**
  * Return the limit on bytes in request msg body
@@ -465,6 +498,17 @@ typedef unsigned long etag_components_t;
 /* This is the default value used */
 #define ETAG_BACKWARD (ETAG_MTIME | ETAG_SIZE)
 
+/* Generic ON/OFF/UNSET for unsigned int foo :2 */
+#define AP_CORE_CONFIG_OFF   (0)
+#define AP_CORE_CONFIG_ON    (1)
+#define AP_CORE_CONFIG_UNSET (2)
+
+/* Generic merge of flag */
+#define AP_CORE_MERGE_FLAG(field, to, base, over) to->field = \
+               over->field != AP_CORE_CONFIG_UNSET            \
+               ? over->field                                  \
+               : base->field                                   
+
 /**
  * @brief Server Signature Enumeration
  */
@@ -554,7 +598,7 @@ typedef struct {
     ap_regex_t *r;
 
     const char *mime_type;       /* forced with ForceType  */
-    const char *handler;         /* forced with SetHandler */
+    const char *handler;         /* forced by something other than SetHandler */
     const char *output_filters;  /* forced with SetOutputFilters */
     const char *input_filters;   /* forced with SetInputFilters */
     int accept_path_info;        /* forced with AcceptPathInfo */
@@ -634,6 +678,13 @@ typedef struct {
      */
     apr_hash_t *response_code_exprs;
 
+    unsigned int qualify_redirect_url :2;
+    ap_expr_info_t  *expr_handler;         /* forced with SetHandler */
+
+    /** Table of rules for building CGI variables, NULL if none configured */
+    apr_hash_t *cgi_var_rules;
+
+    apr_size_t read_buf_size;
 } core_dir_config;
 
 /* macro to implement off by default behaviour */
@@ -693,10 +744,14 @@ typedef struct {
     char http09_enable;
 
 #define AP_HTTP_CONFORMANCE_UNSET     0
-#define AP_HTTP_CONFORMANCE_LIBERAL   1
+#define AP_HTTP_CONFORMANCE_UNSAFE    1
 #define AP_HTTP_CONFORMANCE_STRICT    2
-#define AP_HTTP_CONFORMANCE_LOGONLY   4
     char http_conformance;
+
+#define AP_HTTP_METHODS_UNSET         0
+#define AP_HTTP_METHODS_LENIENT       1
+#define AP_HTTP_METHODS_REGISTERED    2
+    char http_methods;
 
 #define AP_HTTP_CL_HEAD_ZERO_UNSET    0
 #define AP_HTTP_CL_HEAD_ZERO_ENABLE   1
@@ -708,9 +763,14 @@ typedef struct {
 #define AP_HTTP_EXPECT_STRICT_DISABLE  2
     int http_expect_strict;
 
-
     apr_array_header_t *protocols;
     int protocols_honor_order;
+    int async_filter;
+    unsigned int async_filter_set:1;
+ 
+    apr_size_t   flush_max_threshold;
+    apr_int32_t  flush_max_pipelined;
+    unsigned int strict_host_check;
 } core_server_config;
 
 /* for AddOutputFiltersByType in core.c */
@@ -792,6 +852,7 @@ AP_DECLARE_DATA extern ap_filter_rec_t *ap_subreq_core_filter_handle;
 AP_DECLARE_DATA extern ap_filter_rec_t *ap_core_output_filter_handle;
 AP_DECLARE_DATA extern ap_filter_rec_t *ap_content_length_filter_handle;
 AP_DECLARE_DATA extern ap_filter_rec_t *ap_core_input_filter_handle;
+AP_DECLARE_DATA extern ap_filter_rec_t *ap_request_core_filter_handle;
 
 /**
  * This hook provdes a way for modules to provide metrics/statistics about
@@ -1063,6 +1124,11 @@ AP_DECLARE(int) ap_state_query(int query_code);
  * @return The slave connection
  */
 AP_CORE_DECLARE(conn_rec *) ap_create_slave_connection(conn_rec *c);
+
+
+/** Macro to provide a default value if the pointer is not yet initialised
+ */
+#define AP_CORE_DEFAULT(X, Y, Z)    (X ? X->Y : Z)
 
 #ifdef __cplusplus
 }

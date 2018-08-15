@@ -16,9 +16,9 @@
 
 <link href="./images/favicon.ico" rel="shortcut icon" /></head>
 <body id="manual-page"><div id="page-header">
-<p class="menu"><a href="./mod/">Módulos</a> | <a href="./mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="./glossary.html">Glosario</a> | <a href="./sitemap.html">Mapa de este sitio web</a></p>
+<p class="menu"><a href="./mod/">Módulos</a> | <a href="./mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="./glossary.html">Glosario</a> | <a href="./sitemap.html">Mapa del sitio web</a></p>
 <p class="apache">Versión 2.5 del Servidor HTTP Apache</p>
-<img alt="" src="./images/feather.gif" /></div>
+<img alt="" src="./images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="./images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">Servidor HTTP</a> &gt; <a href="http://httpd.apache.org/docs/">Documentación</a> &gt; <a href="./">Versión 2.5</a></div><div id="page-content"><div id="preamble"><h1>Módulos de MultiProcesamiento (MPMs)</h1>
@@ -43,10 +43,10 @@ como los usa Apache.</p>
 <div id="quickview"><ul id="toc"><li><img alt="" src="./images/down.gif" /> <a href="#introduction">Introducción</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#choosing">Cómo Elegir un MPM</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#defaults">MPM por defecto</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comentarios</a></li></ul></div>
+</ul><h3>Consulte también</h3><ul class="seealso"><li><a href="#comments_section">Comentarios</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="introduction" id="introduction">Introducción</a></h2>
+<h2><a name="introduction" id="introduction">Introducción</a><a title="Enlace permanente" href="#introduction" class="permalink">&para;</a></h2>
 
     <p>Apache está diseñado para ser un servidor web potente
     y flexible que pueda funcionar en la más amplia variedad de
@@ -87,10 +87,8 @@ como los usa Apache.</p>
       <code class="module"><a href="./mod/worker.html">worker</a></code>, mientras que los sitios web que
       requieran por encima de otras cosas estabilidad o compatibilidad
       con software antiguo pueden usar
-      <code class="module"><a href="./mod/prefork.html">prefork</a></code>. Además, se pueden configurar
-      funcionalidades especiales como servir diferentes hosts con
-      diferentes identificadores de usuario
-      (<code class="module"><a href="./mod/perchild.html">perchild</a></code>).</li>
+      <code class="module"><a href="./mod/prefork.html">prefork</a></code>.
+      </li>
     </ul>
 
     <p>A nivel de usuario, los MPMs son como cualquier otro
@@ -100,7 +98,7 @@ como los usa Apache.</p>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="choosing" id="choosing">Cómo Elegir un MPM</a></h2>
+<h2><a name="choosing" id="choosing">Cómo Elegir un MPM</a><a title="Enlace permanente" href="#choosing" class="permalink">&para;</a></h2>
 
     <p>Los MPMs deben elegirse durante el proceso de
     configuración, y deben ser compilados en el servidor. Los
@@ -120,7 +118,7 @@ como los usa Apache.</p>
     el servidor, incluido en MPM.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="defaults" id="defaults">MPM por defecto</a></h2>
+<h2><a name="defaults" id="defaults">MPM por defecto</a><a title="Enlace permanente" href="#defaults" class="permalink">&para;</a></h2>
 
 <p>En la siguiente tabla se muestran los MPMs por defecto para varios
 sistemas operativos.  Estos serán los MPM seleccionados si no se
@@ -162,8 +160,8 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mpm.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licencia bajo los términos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="./mod/">Módulos</a> | <a href="./mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="./glossary.html">Glosario</a> | <a href="./sitemap.html">Mapa de este sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licencia bajo los términos de la <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="./mod/">Módulos</a> | <a href="./mod/quickreference.html">Directivas</a> | <a href="http://wiki.apache.org/httpd/FAQ">Preguntas Frecuentes</a> | <a href="./glossary.html">Glosario</a> | <a href="./sitemap.html">Mapa del sitio web</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

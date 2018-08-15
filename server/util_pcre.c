@@ -1,16 +1,25 @@
-/*************************************************
- *      Perl-Compatible Regular Expressions      *
- *************************************************/
+/* Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-/*
-This is a library of functions to support regular expressions whose syntax
-and semantics are as close as possible to those of the Perl 5 language. See
-the file Tech.Notes for some information on the internals.
-
-This module is a wrapper that provides a POSIX API to the underlying PCRE
-functions.
-
-Written by: Philip Hazel <ph10@cam.ac.uk>
+/* This code is based on pcreposix.c from the PCRE Library distribution,
+ * as originally written by Philip Hazel <ph10@cam.ac.uk>, and forked by
+ * the Apache HTTP Server project to provide POSIX-style regex function
+ * wrappers around underlying PCRE library functions for httpd.
+ * 
+ * The original source file pcreposix.c is copyright and licensed as follows;
 
            Copyright (c) 1997-2004 University of Cambridge
 
@@ -46,10 +55,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "httpd.h"
 #include "apr_strings.h"
 #include "apr_tables.h"
+
+#ifdef HAVE_PCRE2
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include "pcre2.h"
+#define PCREn(x) PCRE2_ ## x
+#else
 #include "pcre.h"
+#define PCREn(x) PCRE_ ## x
+#endif
 
 /* PCRE_DUPNAMES is only present since version 6.7 of PCRE */
-#ifndef PCRE_DUPNAMES
+#if !defined(PCRE_DUPNAMES) && !defined(HAVE_PCRE2)
 #error PCRE Version 6.7 or later required!
 #else
 
@@ -74,11 +91,19 @@ static const char *const pstring[] = {
 
 AP_DECLARE(const char *) ap_pcre_version_string(int which)
 {
+#ifdef HAVE_PCRE2
+    static char buf[80];
+#endif
     switch (which) {
     case AP_REG_PCRE_COMPILED:
-        return APR_STRINGIFY(PCRE_MAJOR) "." APR_STRINGIFY(PCRE_MINOR) " " APR_STRINGIFY(PCRE_DATE);
+        return APR_STRINGIFY(PCREn(MAJOR)) "." APR_STRINGIFY(PCREn(MINOR)) " " APR_STRINGIFY(PCREn(DATE));
     case AP_REG_PCRE_LOADED:
+#ifdef HAVE_PCRE2
+        pcre2_config(PCRE2_CONFIG_VERSION, buf);
+        return buf;
+#else
         return pcre_version();
+#endif
     default:
         return "Unknown";
     }
@@ -118,7 +143,11 @@ AP_DECLARE(apr_size_t) ap_regerror(int errcode, const ap_regex_t *preg,
 
 AP_DECLARE(void) ap_regfree(ap_regex_t *preg)
 {
+#ifdef HAVE_PCRE2
+    pcre2_code_free(preg->re_pcre);
+#else
     (pcre_free)(preg->re_pcre);
+#endif
 }
 
 
@@ -127,6 +156,38 @@ AP_DECLARE(void) ap_regfree(ap_regex_t *preg)
 /*************************************************
  *            Compile a regular expression       *
  *************************************************/
+
+static int default_cflags = AP_REG_DOLLAR_ENDONLY;
+
+AP_DECLARE(int) ap_regcomp_get_default_cflags(void)
+{
+    return default_cflags;
+}
+
+AP_DECLARE(void) ap_regcomp_set_default_cflags(int cflags)
+{
+    default_cflags = cflags;
+}
+
+AP_DECLARE(int) ap_regcomp_default_cflag_by_name(const char *name)
+{
+    int cflag = 0;
+
+    if (ap_cstr_casecmp(name, "ICASE") == 0) {
+        cflag = AP_REG_ICASE;
+    }
+    else if (ap_cstr_casecmp(name, "DOTALL") == 0) {
+        cflag = AP_REG_DOTALL;
+    }
+    else if (ap_cstr_casecmp(name, "DOLLAR_ENDONLY") == 0) {
+        cflag = AP_REG_DOLLAR_ENDONLY;
+    }
+    else if (ap_cstr_casecmp(name, "EXTENDED") == 0) {
+        cflag = AP_REG_EXTENDED;
+    }
+
+    return cflag;
+}
 
 /*
  * Arguments:
@@ -139,34 +200,51 @@ AP_DECLARE(void) ap_regfree(ap_regex_t *preg)
 */
 AP_DECLARE(int) ap_regcomp(ap_regex_t * preg, const char *pattern, int cflags)
 {
+#ifdef HAVE_PCRE2
+    uint32_t capcount;
+    size_t erroffset;
+#else
     const char *errorptr;
     int erroffset;
+#endif
     int errcode = 0;
-    int options = PCRE_DUPNAMES;
+    int options = PCREn(DUPNAMES);
 
+    cflags |= default_cflags;
     if ((cflags & AP_REG_ICASE) != 0)
-        options |= PCRE_CASELESS;
+        options |= PCREn(CASELESS);
     if ((cflags & AP_REG_NEWLINE) != 0)
-        options |= PCRE_MULTILINE;
+        options |= PCREn(MULTILINE);
     if ((cflags & AP_REG_DOTALL) != 0)
-        options |= PCRE_DOTALL;
+        options |= PCREn(DOTALL);
+    if ((cflags & AP_REG_DOLLAR_ENDONLY) != 0)
+        options |= PCREn(DOLLAR_ENDONLY);
 
-    preg->re_pcre =
-        pcre_compile2(pattern, options, &errcode, &errorptr, &erroffset, NULL);
+#ifdef HAVE_PCRE2
+    preg->re_pcre = pcre2_compile((const unsigned char *)pattern,
+                                  PCRE2_ZERO_TERMINATED, options, &errcode,
+                                  &erroffset, NULL);
+#else
+    preg->re_pcre = pcre_compile2(pattern, options, &errcode,
+                                  &errorptr, &erroffset, NULL);
+#endif
+
     preg->re_erroffset = erroffset;
-
     if (preg->re_pcre == NULL) {
-        /*
-         * There doesn't seem to be constants defined for compile time error
-         * codes. 21 is "failed to get memory" according to pcreapi(3).
-         */
+        /* Internal ERR21 is "failed to get memory" according to pcreapi(3) */
         if (errcode == 21)
             return AP_REG_ESPACE;
         return AP_REG_INVARG;
     }
 
+#ifdef HAVE_PCRE2
+    pcre2_pattern_info((const pcre2_code *)preg->re_pcre,
+                       PCRE2_INFO_CAPTURECOUNT, &capcount);
+    preg->re_nsub = capcount;
+#else
     pcre_fullinfo((const pcre *)preg->re_pcre, NULL,
-                   PCRE_INFO_CAPTURECOUNT, &(preg->re_nsub));
+                  PCRE_INFO_CAPTURECOUNT, &(preg->re_nsub));
+#endif
     return 0;
 }
 
@@ -198,17 +276,42 @@ AP_DECLARE(int) ap_regexec_len(const ap_regex_t *preg, const char *buff,
 {
     int rc;
     int options = 0;
-    int *ovector = NULL;
+    apr_size_t nlim;
+#ifdef HAVE_PCRE2
+    pcre2_match_data *matchdata;
+    size_t *ovector;
+#else
     int small_ovector[POSIX_MALLOC_THRESHOLD * 3];
     int allocated_ovector = 0;
+    int *ovector = NULL;
+#endif
 
     if ((eflags & AP_REG_NOTBOL) != 0)
-        options |= PCRE_NOTBOL;
+        options |= PCREn(NOTBOL);
     if ((eflags & AP_REG_NOTEOL) != 0)
-        options |= PCRE_NOTEOL;
+        options |= PCREn(NOTEOL);
+    if ((eflags & AP_REG_NOTEMPTY) != 0)
+        options |= PCREn(NOTEMPTY);
+    if ((eflags & AP_REG_ANCHORED) != 0)
+        options |= PCREn(ANCHORED);
 
-    ((ap_regex_t *)preg)->re_erroffset = (apr_size_t)(-1);    /* Only has meaning after compile */
-
+#ifdef HAVE_PCRE2
+    /* TODO: create a generic TLS matchdata buffer of some nmatch limit,
+     * e.g. 10 matches, to avoid a malloc-per-call. If it must be alloced,
+     * implement a general context using palloc and no free implementation.
+     */
+    nlim = ((apr_size_t)preg->re_nsub + 1) > nmatch
+         ? ((apr_size_t)preg->re_nsub + 1) : nmatch;
+    matchdata = pcre2_match_data_create(nlim, NULL);
+    if (matchdata == NULL)
+        return AP_REG_ESPACE;
+    ovector = pcre2_get_ovector_pointer(matchdata);
+    rc = pcre2_match((const pcre2_code *)preg->re_pcre,
+                     (const unsigned char *)buff, len,
+                     0, options, matchdata, NULL);
+    if (rc == 0)
+        rc = nlim;            /* All captured slots were filled in */
+#else
     if (nmatch > 0) {
         if (nmatch <= POSIX_MALLOC_THRESHOLD) {
             ovector = &(small_ovector[0]);
@@ -220,52 +323,63 @@ AP_DECLARE(int) ap_regexec_len(const ap_regex_t *preg, const char *buff,
             allocated_ovector = 1;
         }
     }
-
     rc = pcre_exec((const pcre *)preg->re_pcre, NULL, buff, (int)len,
                    0, options, ovector, nmatch * 3);
-
     if (rc == 0)
         rc = nmatch;            /* All captured slots were filled in */
+#endif
 
     if (rc >= 0) {
         apr_size_t i;
-        for (i = 0; i < (apr_size_t)rc; i++) {
+        nlim = (apr_size_t)rc < nmatch ? (apr_size_t)rc : nmatch;
+        for (i = 0; i < nlim; i++) {
             pmatch[i].rm_so = ovector[i * 2];
             pmatch[i].rm_eo = ovector[i * 2 + 1];
         }
-        if (allocated_ovector)
-            free(ovector);
         for (; i < nmatch; i++)
             pmatch[i].rm_so = pmatch[i].rm_eo = -1;
-        return 0;
     }
 
+#ifdef HAVE_PCRE2
+    pcre2_match_data_free(matchdata);
+#else
+    if (allocated_ovector)
+        free(ovector);
+#endif
+
+    if (rc >= 0) {
+        return 0;
+    }
     else {
-        if (allocated_ovector)
-            free(ovector);
+#ifdef HAVE_PCRE2
+        if (rc <= PCRE2_ERROR_UTF8_ERR1 && rc >= PCRE2_ERROR_UTF8_ERR21)
+            return AP_REG_INVARG;
+#endif
         switch (rc) {
-        case PCRE_ERROR_NOMATCH:
+        case PCREn(ERROR_NOMATCH):
             return AP_REG_NOMATCH;
-        case PCRE_ERROR_NULL:
+        case PCREn(ERROR_NULL):
             return AP_REG_INVARG;
-        case PCRE_ERROR_BADOPTION:
+        case PCREn(ERROR_BADOPTION):
             return AP_REG_INVARG;
-        case PCRE_ERROR_BADMAGIC:
+        case PCREn(ERROR_BADMAGIC):
             return AP_REG_INVARG;
+        case PCREn(ERROR_NOMEMORY):
+            return AP_REG_ESPACE;
+#if defined(HAVE_PCRE2) || defined(PCRE_ERROR_MATCHLIMIT)
+        case PCREn(ERROR_MATCHLIMIT):
+            return AP_REG_ESPACE;
+#endif
+#if defined(PCRE_ERROR_UNKNOWN_NODE)
         case PCRE_ERROR_UNKNOWN_NODE:
             return AP_REG_ASSERT;
-        case PCRE_ERROR_NOMEMORY:
-            return AP_REG_ESPACE;
-#ifdef PCRE_ERROR_MATCHLIMIT
-        case PCRE_ERROR_MATCHLIMIT:
-            return AP_REG_ESPACE;
 #endif
-#ifdef PCRE_ERROR_BADUTF8
-        case PCRE_ERROR_BADUTF8:
+#if defined(PCRE_ERROR_BADUTF8)
+        case PCREn(ERROR_BADUTF8):
             return AP_REG_INVARG;
 #endif
-#ifdef PCRE_ERROR_BADUTF8_OFFSET
-        case PCRE_ERROR_BADUTF8_OFFSET:
+#if defined(PCRE_ERROR_BADUTF8_OFFSET)
+        case PCREn(ERROR_BADUTF8_OFFSET):
             return AP_REG_INVARG;
 #endif
         default:
@@ -278,17 +392,29 @@ AP_DECLARE(int) ap_regname(const ap_regex_t *preg,
                            apr_array_header_t *names, const char *prefix,
                            int upper)
 {
+    char *nametable;
+
+#ifdef HAVE_PCRE2
+    uint32_t namecount;
+    uint32_t nameentrysize;
+    uint32_t i;
+    pcre2_pattern_info((const pcre2_code *)preg->re_pcre,
+                       PCRE2_INFO_NAMECOUNT, &namecount);
+    pcre2_pattern_info((const pcre2_code *)preg->re_pcre,
+                       PCRE2_INFO_NAMEENTRYSIZE, &nameentrysize);
+    pcre2_pattern_info((const pcre2_code *)preg->re_pcre,
+                       PCRE2_INFO_NAMETABLE, &nametable);
+#else
     int namecount;
     int nameentrysize;
     int i;
-    char *nametable;
-
     pcre_fullinfo((const pcre *)preg->re_pcre, NULL,
-                       PCRE_INFO_NAMECOUNT, &namecount);
+                  PCRE_INFO_NAMECOUNT, &namecount);
     pcre_fullinfo((const pcre *)preg->re_pcre, NULL,
-                       PCRE_INFO_NAMEENTRYSIZE, &nameentrysize);
+                  PCRE_INFO_NAMEENTRYSIZE, &nameentrysize);
     pcre_fullinfo((const pcre *)preg->re_pcre, NULL,
-                       PCRE_INFO_NAMETABLE, &nametable);
+                  PCRE_INFO_NAMETABLE, &nametable);
+#endif
 
     for (i = 0; i < namecount; i++) {
         const char *offset = nametable + i * nameentrysize;

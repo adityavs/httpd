@@ -63,6 +63,7 @@
 #include "httpd.h"
 #include "http_config.h"
 #include "http_request.h"
+#include "http_log.h"
 
 #if !defined(WIN32) && !defined(OS2) && !defined(NETWARE)
 #define HAVE_UNIX_SUEXEC
@@ -89,7 +90,7 @@ module AP_MODULE_DECLARE_DATA userdir_module;
 
 typedef struct {
     int globally_disabled;
-    char *userdir;
+    const char *userdir;
     apr_table_t *enabled_users;
     apr_table_t *disabled_users;
 } userdir_config;
@@ -137,7 +138,7 @@ static const char *set_user_dir(cmd_parms *cmd, void *dummy, const char *arg)
                                                  &userdir_module);
     char *username;
     const char *usernames = arg;
-    char *kw = ap_getword_conf(cmd->pool, &usernames);
+    char *kw = ap_getword_conf(cmd->temp_pool, &usernames);
     apr_table_t *usertable;
 
     /* Since we are a raw argument, it is possible for us to be called with
@@ -173,7 +174,7 @@ static const char *set_user_dir(cmd_parms *cmd, void *dummy, const char *arg)
          * If the first (only?) value isn't one of our keywords, just copy
          * the string to the userdir string.
          */
-        s_cfg->userdir = apr_pstrdup(cmd->pool, arg);
+        s_cfg->userdir = arg;
         return NULL;
     }
     /*
@@ -182,7 +183,7 @@ static const char *set_user_dir(cmd_parms *cmd, void *dummy, const char *arg)
      */
     while (*usernames) {
         username = ap_getword_conf(cmd->pool, &usernames);
-        apr_table_setn(usertable, username, kw);
+        apr_table_setn(usertable, username, "1");
     }
     return NULL;
 }
@@ -265,6 +266,9 @@ static int translate_userdir(request_rec *r)
         apr_status_t rv;
         int is_absolute = ap_os_is_path_absolute(r->pool, userdir);
 
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(10138)
+                      "checking for UserDir '%s'", userdir);
+
         if (ap_strchr_c(userdir, '*'))
             prefix = ap_getword(r->pool, &userdir, '*');
 
@@ -318,11 +322,16 @@ static int translate_userdir(request_rec *r)
          * anyway, in the hope that some handler might handle it. This can be
          * used, for example, to run a CGI script for the user.
          */
+        filename = apr_pstrcat(r->pool, filename, dname, NULL);
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(10139)
+                      "checking for filename '%s'", filename);
         if (filename && (!*userdirs
                       || ((rv = apr_stat(&statbuf, filename, APR_FINFO_MIN,
                                          r->pool)) == APR_SUCCESS
                                              || rv == APR_INCOMPLETE))) {
-            r->filename = apr_pstrcat(r->pool, filename, dname, NULL);
+            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(10140)
+                          "'%s' found", filename);
+            r->filename = filename;
             ap_set_context_info(r, apr_pstrmemdup(r->pool, r->uri,
                                                   dname - r->uri),
                                 filename);
@@ -338,6 +347,8 @@ static int translate_userdir(request_rec *r)
 
             return OK;
         }
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(10141)
+                      "'%s' NOT found. Trying next UserDir directory (if any)", filename);
     }
 
     return DECLINED;

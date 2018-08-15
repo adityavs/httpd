@@ -76,14 +76,14 @@ typedef struct cache_socache_object_t
     apr_table_t *headers_out; /* Output headers to save */
     cache_socache_info_t socache_info; /* Header information. */
     apr_size_t body_offset; /* offset to the start of the body */
-    unsigned int newbody :1; /* whether a new body is present */
+    apr_off_t body_length; /* length of the cached entity body */
     apr_time_t expire; /* when to expire the entry */
 
     const char *name; /* Requested URI without vary bits - suitable for mortals. */
     const char *key; /* On-disk prefix; URI with Vary bits (if present) */
-    apr_off_t file_size; /*  File size of the cached data file  */
     apr_off_t offset; /* Max size to set aside */
     apr_time_t timeout; /* Max time to set aside */
+    unsigned int newbody :1; /* whether a new body is present */
     unsigned int done :1; /* Is the attempt to cache complete? */
 } cache_socache_object_t;
 
@@ -191,7 +191,6 @@ static apr_status_t read_table(cache_handle_t *handle, request_rec *r,
         apr_size_t *slider)
 {
     apr_size_t key = *slider, colon = 0, len = 0;
-    ;
 
     while (*slider < buffer_len) {
         if (buffer[*slider] == ':') {
@@ -214,11 +213,12 @@ static apr_status_t read_table(cache_handle_t *handle, request_rec *r,
                         "Premature end of cache headers.");
                 return APR_EGENERAL;
             }
-            while (apr_isspace(buffer[colon])) {
+            /* Do not go past the \r from above as apr_isspace('\r') is true */
+            while (apr_isspace(buffer[colon]) && (colon < *slider)) {
                 colon++;
             }
-            apr_table_addn(table, apr_pstrndup(r->pool, (const char *) buffer
-                    + key, len - key), apr_pstrndup(r->pool,
+            apr_table_addn(table, apr_pstrmemdup(r->pool, (const char *) buffer
+                    + key, len - key), apr_pstrmemdup(r->pool,
                     (const char *) buffer + colon, *slider - colon));
             (*slider)++;
             if (buffer[*slider] == '\n') {
@@ -271,7 +271,8 @@ static apr_status_t store_table(apr_table_t *table, unsigned char *buffer,
 }
 
 static const char* regen_key(apr_pool_t *p, apr_table_t *headers,
-        apr_array_header_t *varray, const char *oldkey)
+                             apr_array_header_t *varray, const char *oldkey,
+                             apr_size_t *newkeylen)
 {
     struct iovec *iov;
     int i, k;
@@ -323,7 +324,7 @@ static const char* regen_key(apr_pool_t *p, apr_table_t *headers,
     iov[k].iov_len = strlen(oldkey);
     k++;
 
-    return apr_pstrcatv(p, iov, k, NULL);
+    return apr_pstrcatv(p, iov, k, newkeylen);
 }
 
 static int array_alphasort(const void *fn1, const void *fn2)
@@ -463,8 +464,8 @@ static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
      */
     apr_pool_create(&sobj->pool, r->pool);
 
-    sobj->buffer = apr_palloc(sobj->pool, dconf->max + 1);
-    sobj->buffer_len = dconf->max + 1;
+    sobj->buffer = apr_palloc(sobj->pool, dconf->max);
+    sobj->buffer_len = dconf->max;
 
     /* attempt to retrieve the cached entry */
     if (socache_mutex) {
@@ -527,7 +528,7 @@ static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
             return DECLINED;
         }
 
-        nkey = regen_key(r->pool, r->headers_in, varray, key);
+        nkey = regen_key(r->pool, r->headers_in, varray, key, &len);
 
         /* attempt to retrieve the cached entry */
         if (socache_mutex) {
@@ -543,7 +544,7 @@ static int open_entity(cache_handle_t *h, request_rec *r, const char *key)
         buffer_len = sobj->buffer_len;
         rc = conf->provider->socache_provider->retrieve(
                 conf->provider->socache_instance, r->server,
-                (unsigned char *) nkey, strlen(nkey), sobj->buffer,
+                (unsigned char *) nkey, len, sobj->buffer,
                 &buffer_len, r->pool);
         if (socache_mutex) {
             apr_status_t status = apr_global_mutex_unlock(socache_mutex);
@@ -870,7 +871,7 @@ static apr_status_t store_headers(cache_handle_t *h, request_rec *r,
             }
 
             obj->key = sobj->key = regen_key(r->pool, sobj->headers_in, varray,
-                    sobj->name);
+                                             sobj->name, NULL);
         }
     }
 
@@ -954,13 +955,7 @@ static apr_status_t store_body(cache_handle_t *h, request_rec *r,
     }
 
     if (!sobj->newbody) {
-        if (sobj->body) {
-            apr_brigade_cleanup(sobj->body);
-        }
-        else {
-            sobj->body = apr_brigade_create(r->pool,
-                    r->connection->bucket_alloc);
-        }
+        sobj->body_length = 0;
         sobj->newbody = 1;
     }
     if (sobj->offset) {
@@ -1022,27 +1017,19 @@ static apr_status_t store_body(cache_handle_t *h, request_rec *r,
             continue;
         }
 
-        sobj->file_size += length;
-        if (sobj->file_size >= sobj->buffer_len - sobj->body_offset) {
+        sobj->body_length += length;
+        if (sobj->body_length >= sobj->buffer_len - sobj->body_offset) {
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02378)
                     "URL %s failed the buffer size check "
                     "(%" APR_OFF_T_FMT ">=%" APR_SIZE_T_FMT ")",
-                    h->cache_obj->key, sobj->file_size, sobj->buffer_len - sobj->body_offset);
+                    h->cache_obj->key, sobj->body_length,
+                    sobj->buffer_len - sobj->body_offset);
             apr_pool_destroy(sobj->pool);
             sobj->pool = NULL;
             return APR_EGENERAL;
         }
-
-        rv = apr_bucket_copy(e, &e);
-        if (rv != APR_SUCCESS) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(02379)
-                    "Error when copying bucket for URL %s",
-                    h->cache_obj->key);
-            apr_pool_destroy(sobj->pool);
-            sobj->pool = NULL;
-            return rv;
-        }
-        APR_BRIGADE_INSERT_TAIL(sobj->body, e);
+        memcpy(sobj->buffer + sobj->body_offset + sobj->body_length - length,
+               str, length);
 
         /* have we reached the limit of how much we're prepared to write in one
          * go? If so, leave, we'll get called again. This prevents us from trying
@@ -1076,8 +1063,10 @@ static apr_status_t store_body(cache_handle_t *h, request_rec *r,
             return APR_EGENERAL;
         }
         if (cl_header) {
-            apr_int64_t cl = apr_atoi64(cl_header);
-            if ((errno == 0) && (sobj->file_size != cl)) {
+            apr_off_t cl;
+            char *cl_endp;
+            if (apr_strtoff(&cl, cl_header, &cl_endp, 10) != APR_SUCCESS
+                    || *cl_endp != '\0' || cl != sobj->body_length) {
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02381)
                         "URL %s didn't receive complete response, not caching",
                         h->cache_obj->key);
@@ -1101,24 +1090,6 @@ static apr_status_t commit_entity(cache_handle_t *h, request_rec *r)
     cache_object_t *obj = h->cache_obj;
     cache_socache_object_t *sobj = (cache_socache_object_t *) obj->vobj;
     apr_status_t rv;
-    apr_size_t len;
-
-    /* flatten the body into the buffer */
-    len = sobj->buffer_len - sobj->body_offset;
-    rv = apr_brigade_flatten(sobj->body, (char *) sobj->buffer
-            + sobj->body_offset, &len);
-    if (APR_SUCCESS != rv) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(02382)
-                "could not flatten brigade, not caching: %s",
-                sobj->key);
-        goto fail;
-    }
-    if (len >= sobj->buffer_len - sobj->body_offset) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(02383)
-                "body too big for the cache buffer, not caching: %s",
-                h->cache_obj->key);
-        goto fail;
-    }
 
     if (socache_mutex) {
         apr_status_t status = apr_global_mutex_lock(socache_mutex);
@@ -1127,13 +1098,13 @@ static apr_status_t commit_entity(cache_handle_t *h, request_rec *r)
                     "could not acquire lock, ignoring: %s", obj->key);
             apr_pool_destroy(sobj->pool);
             sobj->pool = NULL;
-            return rv;
+            return status;
         }
     }
     rv = conf->provider->socache_provider->store(
             conf->provider->socache_instance, r->server,
             (unsigned char *) sobj->key, strlen(sobj->key), sobj->expire,
-            sobj->buffer, (unsigned int) sobj->body_offset + len, sobj->pool);
+            sobj->buffer, sobj->body_offset + sobj->body_length, sobj->pool);
     if (socache_mutex) {
         apr_status_t status = apr_global_mutex_unlock(socache_mutex);
         if (status != APR_SUCCESS) {
@@ -1141,7 +1112,7 @@ static apr_status_t commit_entity(cache_handle_t *h, request_rec *r)
                     "could not release lock, ignoring: %s", obj->key);
             apr_pool_destroy(sobj->pool);
             sobj->pool = NULL;
-            return DECLINED;
+            return status;
         }
     }
     if (rv != APR_SUCCESS) {
@@ -1279,7 +1250,7 @@ static const char *set_cache_socache(cmd_parms *cmd, void *in_struct_ptr,
             name, AP_SOCACHE_PROVIDER_VERSION);
     if (provider->socache_provider == NULL) {
         err = apr_psprintf(cmd->pool,
-                "Unknown socache provider '%s'. Maybe you need "
+                    "Unknown socache provider '%s'. Maybe you need "
                     "to load the appropriate socache module "
                     "(mod_socache_%s?)", name, name);
     }
@@ -1291,9 +1262,11 @@ static const char *set_cache_max(cmd_parms *parms, void *in_struct_ptr,
 {
     cache_socache_dir_conf *dconf = (cache_socache_dir_conf *) in_struct_ptr;
 
-    if (apr_strtoff(&dconf->max, arg, NULL, 10) != APR_SUCCESS || dconf->max
-            < 1024) {
-        return "CacheSocacheMaxSize argument must be a integer representing the max size of a cached entry (headers and body), at least 1024";
+    if (apr_strtoff(&dconf->max, arg, NULL, 10) != APR_SUCCESS
+            || dconf->max < 1024 || dconf->max > APR_UINT32_MAX) {
+        return "CacheSocacheMaxSize argument must be a integer representing "
+               "the max size of a cached entry (headers and body), at least 1024 "
+               "and at most " APR_STRINGIFY(APR_UINT32_MAX);
     }
     dconf->max_set = 1;
     return NULL;
@@ -1445,7 +1418,7 @@ static int socache_precfg(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptmp)
             APR_LOCK_DEFAULT, 0);
     if (rv != APR_SUCCESS) {
         ap_log_perror(APLOG_MARK, APLOG_CRIT, rv, plog, APLOGNO(02390)
-        "failed to register %s mutex", cache_socache_id);
+                "failed to register %s mutex", cache_socache_id);
         return 500; /* An HTTP status would be a misnomer! */
     }
 
@@ -1479,7 +1452,7 @@ static int socache_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                     NULL, s, pconf, 0);
             if (rv != APR_SUCCESS) {
                 ap_log_perror(APLOG_MARK, APLOG_CRIT, rv, plog, APLOGNO(02391)
-                "failed to create %s mutex", cache_socache_id);
+                        "failed to create %s mutex", cache_socache_id);
                 return 500; /* An HTTP status would be a misnomer! */
             }
             apr_pool_cleanup_register(pconf, NULL, remove_lock,
@@ -1500,7 +1473,7 @@ static int socache_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                 &socache_hints, s, pconf);
         if (rv != APR_SUCCESS) {
             ap_log_perror(APLOG_MARK, APLOG_CRIT, rv, plog, APLOGNO(02393)
-            "failed to initialise %s cache", cache_socache_id);
+                    "failed to initialise %s cache", cache_socache_id);
             return 500; /* An HTTP status would be a misnomer! */
         }
         apr_pool_cleanup_register(pconf, (void *) s, destroy_cache,

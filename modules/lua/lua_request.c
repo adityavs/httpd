@@ -56,52 +56,53 @@ void ap_lua_rstack_dump(lua_State *L, request_rec *r, const char *msg)
         int t = lua_type(L, i);
         switch (t) {
         case LUA_TSTRING:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03001)
                               "%d:  '%s'", i, lua_tostring(L, i));
                 break;
             }
         case LUA_TUSERDATA:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "%d:  userdata",
-                              i);
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03002)
+                              "%d:  userdata", i);
                 break;
             }
         case LUA_TLIGHTUSERDATA:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03003)
                               "%d:  lightuserdata", i);
                 break;
             }
         case LUA_TNIL:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "%d:  NIL", i);
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03004)
+                              "%d:  NIL", i);
                 break;
             }
         case LUA_TNONE:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "%d:  None", i);
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03005)
+                              "%d:  None", i);
                 break;
             }
         case LUA_TBOOLEAN:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
-                              "%d:  %s", i, lua_toboolean(L,
-                                                          i) ? "true" :
-                              "false");
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03006)
+                              "%d:  %s", i,
+                              lua_toboolean(L, i) ? "true" : "false");
                 break;
             }
         case LUA_TNUMBER:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03007)
                               "%d:  %g", i, lua_tonumber(L, i));
                 break;
             }
         case LUA_TTABLE:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03008)
                               "%d:  <table>", i);
                 break;
             }
         case LUA_TFUNCTION:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03009)
                               "%d:  <function>", i);
                 break;
             }
         default:{
-                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
+                ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(03010)
                               "%d:  unknown: -[%s]-", i, lua_typename(L, i));
                 break;
             }
@@ -333,7 +334,7 @@ static char* ap_lua_binstrstr (const char * haystack, size_t hsize, const char* 
     return NULL;
 } 
 
-/* r:parsebody(): Parses regular (url-enocded) or multipart POST data and returns two tables*/
+/* r:parsebody(): Parses regular (url-encoded) or multipart POST data and returns two tables*/
 static int req_parsebody(lua_State *L)
 {
     apr_array_header_t          *pairs;
@@ -344,7 +345,7 @@ static int req_parsebody(lua_State *L)
     char *multipart;
     const char *contentType;
     request_rec *r = ap_lua_check_request_rec(L, 1);
-    max_post_size = (apr_size_t) luaL_optint(L, 2, MAX_STRING_LEN);
+    max_post_size = (apr_size_t) luaL_optinteger(L, 2, MAX_STRING_LEN);
     multipart = apr_pcalloc(r->pool, 256);
     contentType = apr_table_get(r->headers_in, "Content-Type");
     lua_newtable(L);
@@ -381,7 +382,7 @@ static int req_parsebody(lua_State *L)
             sscanf(start + len + 2,
                 "Content-Disposition: form-data; name=\"%255[^\"]\"; filename=\"%255[^\"]\"",
                 key, filename);
-            if (strlen(key)) {
+            if (*key) {
                 req_aprtable2luatable_cb_len(L, key, buffer, vlen);
             }
         }
@@ -417,7 +418,7 @@ static int lua_ap_requestbody(lua_State *L)
     
     r = ap_lua_check_request_rec(L, 1);
     filename = luaL_optstring(L, 2, 0);
-    maxSize = luaL_optint(L, 3, 0);
+    maxSize = (apr_off_t)luaL_optinteger(L, 3, 0);
 
     if (r) {
         apr_off_t size;
@@ -489,7 +490,7 @@ static int req_write(lua_State *L)
     return 1;
 }
 
-/* r:addoutputfilter(name|function) */
+/* r:add_output_filter(name) */
 static int req_add_output_filter(lua_State *L)
 {
     request_rec *r = ap_lua_check_request_rec(L, 1);
@@ -1274,6 +1275,10 @@ static int lua_ap_scoreboard_worker(lua_State *L)
         lua_pushstring(L, ws_record->client);
         lua_settable(L, -3);
 
+        lua_pushstring(L, "client64");
+        lua_pushstring(L, ws_record->client64);
+        lua_settable(L, -3);
+
         lua_pushstring(L, "conn_bytes");
         lua_pushnumber(L, (lua_Number) ws_record->conn_bytes);
         lua_settable(L, -3);
@@ -1598,7 +1603,7 @@ static int lua_ap_set_context_info(lua_State *L)
 
 /**
  * ap_os_escape_path (apr_pool_t *p, const char *path, int partial)
- * convert an OS path to a URL in an OS dependant way.
+ * convert an OS path to a URL in an OS dependent way.
  * @param p The pool to allocate from
  * @param path The path to convert
  * @param partial if set, assume that the path will be appended to something
@@ -1646,7 +1651,7 @@ static int lua_ap_escape_logitem(lua_State *L)
 
 /**
  * ap_strcmp_match (const char *str, const char *expected)
- * Determine if a string matches a patterm containing the wildcards '?' or '*'
+ * Determine if a string matches a pattern containing the wildcards '?' or '*'
  * @param str The string to check
  * @param expected The pattern to match against
  * @param ignoreCase Whether to ignore case when matching
@@ -1707,7 +1712,7 @@ static int lua_ap_make_etag(lua_State *L)
     luaL_checktype(L, 1, LUA_TUSERDATA);
     r = ap_lua_check_request_rec(L, 1);
     luaL_checktype(L, 2, LUA_TBOOLEAN);
-    force_weak = luaL_optint(L, 2, 0);
+    force_weak = (int)luaL_optinteger(L, 2, 0);
     returnValue = ap_make_etag(r, force_weak);
     lua_pushstring(L, returnValue);
     return 1;
@@ -1893,6 +1898,7 @@ static int req_log_at(lua_State *L, int level)
     lua_getinfo(L, "Sl", &dbg);
 
     msg = luaL_checkstring(L, 2);
+    /* Intentional no APLOGNO */
     ap_log_rerror(dbg.source, dbg.currentline, APLOG_MODULE_INDEX, level, 0,
                   r, "%s", msg);
     return 0;
@@ -2038,7 +2044,7 @@ static int lua_set_cookie(lua_State *L)
         /* expiry */
         lua_pushstring(L, "expires");
         lua_gettable(L, -2);
-        expires = luaL_optint(L, -1, 0);
+        expires = (int)luaL_optinteger(L, -1, 0);
         lua_pop(L, 1);
         
         /* secure */
@@ -2108,8 +2114,8 @@ static int lua_set_cookie(lua_State *L)
             secure ? "Secure;" : "", 
             expires ? strexpires : "", 
             httponly ? "HttpOnly;" : "", 
-            strlen(strdomain) ? strdomain : "", 
-            strlen(strpath) ? strpath : "");
+            *strdomain ? strdomain : "", 
+            *strpath ? strpath : "");
     
     apr_table_add(r->err_headers_out, "Set-Cookie", out);
     return 0;
@@ -2145,8 +2151,8 @@ static int lua_websocket_greet(lua_State *L)
     request_rec *r = ap_lua_check_request_rec(L, 1);
     key = apr_table_get(r->headers_in, "Sec-WebSocket-Key");
     if (key != NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
-                    "Websocket: Got websocket key: %s", key);
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03011) 
+                      "Websocket: Got websocket key: %s", key);
         key = apr_pstrcat(r->pool, key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11", 
                 NULL);
         apr_sha1_init(&sha1);
@@ -2157,18 +2163,18 @@ static int lua_websocket_greet(lua_State *L)
             encoded = apr_palloc(r->pool, encoded_len);
             encoded_len = apr_base64_encode(encoded, (char*) digest, APR_SHA1_DIGESTSIZE);
             r->status = 101;
-            apr_table_set(r->headers_out, "Upgrade", "websocket");
-            apr_table_set(r->headers_out, "Connection", "Upgrade");
-            apr_table_set(r->headers_out, "Sec-WebSocket-Accept", encoded);
+            apr_table_setn(r->headers_out, "Upgrade", "websocket");
+            apr_table_setn(r->headers_out, "Connection", "Upgrade");
+            apr_table_setn(r->headers_out, "Sec-WebSocket-Accept", encoded);
             
             /* Trick httpd into NOT using the chunked filter, IMPORTANT!!!111*/
-            apr_table_set(r->headers_out, "Transfer-Encoding", "chunked");
+            apr_table_setn(r->headers_out, "Transfer-Encoding", "chunked");
             
             r->clength = 0;
             r->bytes_sent = 0;
             r->read_chunked = 0;
             ap_rflush(r);
-            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03012) 
                           "Websocket: Upgraded from HTTP to Websocket");
             lua_pushboolean(L, 1);
             return 1;
@@ -2314,12 +2320,12 @@ static int lua_websocket_read(lua_State *L)
                         return 0;
                     }
                 }
-                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
-                        "Websocket: Reading %" APR_SIZE_T_FMT " (%s) bytes, masking is %s. %s", 
-                        plen,
-                        (payload >= 126) ? "extra payload" : "no extra payload", 
-                        mask ? "on" : "off", 
-                        fin ? "This is a final frame" : "more to follow");
+                ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03210)
+                              "Websocket: Reading %" APR_SIZE_T_FMT " (%s) bytes, masking is %s. %s", 
+                              plen,
+                              (payload >= 126) ? "extra payload" : "no extra payload", 
+                              mask ? "on" : "off", 
+                              fin ? "This is a final frame" : "more to follow");
                 if (mask) {
                     len = 4;
                     if (plaintext) {
@@ -2404,8 +2410,8 @@ static int lua_websocket_write(lua_State *L)
     string = lua_tolstring(L, 2, &len);
     
     if (raw != 1) {
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
-                        "Websocket: Writing framed message to client");
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03013) 
+                      "Websocket: Writing framed message to client");
         
         prelude = 0x81; /* text frame, FIN */
         ap_rputc(prelude, r);
@@ -2426,8 +2432,8 @@ static int lua_websocket_write(lua_State *L)
         }
     }
     else {
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
-                        "Websocket: Writing raw message to client");
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03014) 
+                      "Websocket: Writing raw message to client");
     }
     ap_rwrite(string, len, r);
     rv = ap_rflush(r);
@@ -2486,8 +2492,8 @@ static int lua_websocket_ping(lua_State *L)
         unsigned char mask = len >> 7;
         if (mask) len -= 128;
         plen = len;
-        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, 
-                        "Websocket: Got PONG opcode: %x", opcode);
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(03015) 
+                      "Websocket: Got PONG opcode: %x", opcode);
         if (opcode == 0x8A) {
             lua_pushboolean(L, 1);
         }
@@ -2496,7 +2502,7 @@ static int lua_websocket_ping(lua_State *L)
         }
         if (plen > 0) {
             ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r, 
-                        "Websocket: Reading %" APR_SIZE_T_FMT " bytes of PONG", plen);
+                          "Websocket: Reading %" APR_SIZE_T_FMT " bytes of PONG", plen);
             return 1;
         }
         if (mask) {
@@ -2953,27 +2959,27 @@ void ap_lua_load_request_lmodule(lua_State *L, apr_pool_t *p)
     lua_pushlightuserdata(L, dispatch);
     lua_setfield(L, LUA_REGISTRYINDEX, "Apache2.Request.dispatch");
 
-    luaL_newmetatable(L, "Apache2.Request");    /* [metatable] */
+    luaL_newmetatable(L, "Apache2.Request");     /* [metatable] */
     lua_pushvalue(L, -1);
 
     lua_setfield(L, -2, "__index");
-    luaL_register(L, NULL, request_methods);    /* [metatable] */
+    luaL_setfuncs_compat(L, request_methods);    /* [metatable] */
 
     lua_pop(L, 2);
 
-    luaL_newmetatable(L, "Apache2.Connection"); /* [metatable] */
+    luaL_newmetatable(L, "Apache2.Connection");  /* [metatable] */
     lua_pushvalue(L, -1);
 
     lua_setfield(L, -2, "__index");
-    luaL_register(L, NULL, connection_methods); /* [metatable] */
+    luaL_setfuncs_compat(L, connection_methods); /* [metatable] */
 
     lua_pop(L, 2);
 
-    luaL_newmetatable(L, "Apache2.Server");     /* [metatable] */
+    luaL_newmetatable(L, "Apache2.Server");      /* [metatable] */
     lua_pushvalue(L, -1);
 
     lua_setfield(L, -2, "__index");
-    luaL_register(L, NULL, server_methods);     /* [metatable] */
+    luaL_setfuncs_compat(L, server_methods);     /* [metatable] */
 
     lua_pop(L, 2);
 

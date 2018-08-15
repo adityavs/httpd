@@ -18,7 +18,7 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="./images/feather.gif" /></div>
+<img alt="" src="./images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="./images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="./">Version 2.5</a></div><div id="page-content"><div id="preamble"><h1>Expressions in Apache HTTP Server</h1>
@@ -46,36 +46,49 @@
 <li><img alt="" src="./images/down.gif" /> <a href="#other">Other</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#sslrequire">Comparison with SSLRequire</a></li>
 <li><img alt="" src="./images/down.gif" /> <a href="#compatibility">Version History</a></li>
-</ul><h3>See also</h3><ul class="seealso"><li><code class="directive"><a href="./mod/core.html#if">&lt;If&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#elseif">&lt;ElseIf&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#else">&lt;Else&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#errordocument">&lt;ErrorDocument&gt;</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#alias">Alias</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#scriptalias">ScriptAlias</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#redirect">Redirect</a></code></li><li><code class="directive"><a href="./mod/mod_auth_basic.html#authbasicfake">AuthBasicFake</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginrequiredlocation">AuthFormLoginRequiredLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginsuccesslocation">AuthFormLoginSuccessLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformlogoutlocation">AuthFormLogoutLocation</a></code></li><li><code class="directive"><a href="./mod/mod_authn_core.html#authname">AuthName</a></code></li><li><code class="directive"><a href="./mod/mod_authn_core.html#authtype">AuthType</a></code></li><li><code class="directive"><a href="./mod/mod_rewrite.html#rewritecond">RewriteCond</a></code></li><li><code class="directive"><a href="./mod/mod_setenvif.html#setenvifexpr">SetEnvIfExpr</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#header">Header</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#requestheader">RequestHeader</a></code></li><li><code class="directive"><a href="./mod/mod_filter.html#filterprovider">FilterProvider</a></code></li><li><a href="mod/mod_authz_core.html#reqexpr">Require expr</a></li><li><a href="mod/mod_authnz_ldap.html#requser">Require ldap-user</a></li><li><a href="mod/mod_authnz_ldap.html#reqgroup">Require ldap-group</a></li><li><a href="mod/mod_authnz_ldap.html#reqdn">Require ldap-dn</a></li><li><a href="mod/mod_authnz_ldap.html#reqattribute">Require ldap-attribute</a></li><li><a href="mod/mod_authnz_ldap.html#reqfilter">Require ldap-filter</a></li><li><a href="mod/mod_authnz_ldap.html#reqsearch">Require ldap-search</a></li><li><a href="mod/mod_authz_dbd.html#reqgroup">Require dbd-group</a></li><li><a href="mod/mod_authz_dbm.html#reqgroup">Require dbm-group</a></li><li><a href="mod/mod_authz_groupfile.html#reqgroup">Require group</a></li><li><a href="mod/mod_authz_host.html#reqhost">Require host</a></li><li><code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code></li><li><code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code></li><li><code class="module"><a href="./mod/mod_include.html">mod_include</a></code></li></ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+</ul><h3>See also</h3><ul class="seealso"><li><code class="directive"><a href="./mod/core.html#if">&lt;If&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#elseif">&lt;ElseIf&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#else">&lt;Else&gt;</a></code></li><li><code class="directive"><a href="./mod/core.html#errordocument">ErrorDocument</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#alias">Alias</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#scriptalias">ScriptAlias</a></code></li><li><code class="directive"><a href="./mod/mod_alias.html#redirect">Redirect</a></code></li><li><code class="directive"><a href="./mod/mod_auth_basic.html#authbasicfake">AuthBasicFake</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginrequiredlocation">AuthFormLoginRequiredLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformloginsuccesslocation">AuthFormLoginSuccessLocation</a></code></li><li><code class="directive"><a href="./mod/mod_auth_form.html#authformlogoutlocation">AuthFormLogoutLocation</a></code></li><li><code class="directive"><a href="./mod/mod_authn_core.html#authname">AuthName</a></code></li><li><code class="directive"><a href="./mod/mod_authn_core.html#authtype">AuthType</a></code></li><li><code class="directive"><a href="./mod/mod_rewrite.html#rewritecond">RewriteCond</a></code></li><li><code class="directive"><a href="./mod/mod_setenvif.html#setenvifexpr">SetEnvIfExpr</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#header">Header</a></code></li><li><code class="directive"><a href="./mod/mod_headers.html#requestheader">RequestHeader</a></code></li><li><code class="directive"><a href="./mod/mod_filter.html#filterprovider">FilterProvider</a></code></li><li><code class="directive"><a href="./mod/mod_crypto.html#cryptokey">CryptoKey</a></code></li><li><code class="directive"><a href="./mod/mod_crypto.html#cryptoiv">CryptoIV</a></code></li><li><a href="mod/mod_authz_core.html#reqexpr">Require expr</a></li><li><a href="mod/mod_authnz_ldap.html#requser">Require ldap-user</a></li><li><a href="mod/mod_authnz_ldap.html#reqgroup">Require ldap-group</a></li><li><a href="mod/mod_authnz_ldap.html#reqdn">Require ldap-dn</a></li><li><a href="mod/mod_authnz_ldap.html#reqattribute">Require ldap-attribute</a></li><li><a href="mod/mod_authnz_ldap.html#reqfilter">Require ldap-filter</a></li><li><a href="mod/mod_authnz_ldap.html#reqsearch">Require ldap-search</a></li><li><a href="mod/mod_authz_dbd.html#reqgroup">Require dbd-group</a></li><li><a href="mod/mod_authz_dbm.html#reqgroup">Require dbm-group</a></li><li><a href="mod/mod_authz_groupfile.html#reqgroup">Require group</a></li><li><a href="mod/mod_authz_host.html#reqhost">Require host</a></li><li><code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code></li><li><code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code></li><li><code class="module"><a href="./mod/mod_include.html">mod_include</a></code></li><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="grammar" id="grammar">Grammar in Backus-Naur Form notation</a></h2>
+<h2><a name="grammar" id="grammar">Grammar in Backus-Naur Form notation</a><a title="Permanent link" href="#grammar" class="permalink">&para;</a></h2>
     
       <p><a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">Backus-Naur
       Form</a> (BNF) is a notation technique for context-free grammars,
       often used to describe the syntax of languages used in computing.
       In most cases, expressions are used to express boolean values.
-      For these, the starting point in the BNF is <code>expr</code>.
-      However, a few directives like <code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code> accept expressions
+      For these, the starting point in the BNF is <code>cond</code>.
+      Directives like <code class="directive"><a href="./mod/core.html#errordocument">ErrorDocument</a></code>,
+      <code class="directive"><a href="./mod/mod_authz_core.html#require">Require</a></code>,
+      <code class="directive"><a href="./mod/mod_authn_core.html#authname">AuthName</a></code>,
+      <code class="directive"><a href="./mod/mod_alias.html#redirect">Redirect</a></code>,
+      <code class="directive"><a href="./mod/mod_headers.html#header">Header</a></code>,
+      <code class="directive"><a href="./mod/mod_crypto.html#cryptokey">CryptoKey</a></code> or
+      <code class="directive"><a href="./mod/mod_log_debug.html#logmessage">LogMessage</a></code> accept expressions
       that evaluate to a string value. For those, the starting point in
       the BNF is <code>string</code>.
       </p>
 <blockquote>
-<pre>expr        ::= "<strong>true</strong>" | "<strong>false</strong>"
-              | "<strong>!</strong>" expr
-              | expr "<strong>&amp;&amp;</strong>" expr
-              | expr "<strong>||</strong>" expr
-              | "<strong>(</strong>" expr "<strong>)</strong>"
+<pre>expr        ::= cond
+              | string
+
+string      ::= substring
+              | string substring
+
+cond        ::= "<strong>true</strong>" 
+              | "<strong>false</strong>"
+              | "<strong>!</strong>" cond
+              | cond "<strong>&amp;&amp;</strong>" cond
+              | cond "<strong>||</strong>" cond
               | comp
+              | "<strong>(</strong>" cond "<strong>)</strong>"
 
 comp        ::= stringcomp
               | integercomp
               | unaryop word
               | word binaryop word
-              | word "<strong>in</strong>" "<strong>{</strong>" wordlist "<strong>}</strong>"
-              | word "<strong>in</strong>" listfunction
+              | word "<strong>in</strong>" listfunc
               | word "<strong>=~</strong>" regex
               | word "<strong>!~</strong>" regex
+              | word "<strong>in</strong>" "<strong>{</strong>" list "<strong>}</strong>"
 
 
 stringcomp  ::= word "<strong>==</strong>" word
@@ -92,40 +105,69 @@ integercomp ::= word "<strong>-eq</strong>" word | word "<strong>eq</strong>" wo
               | word "<strong>-gt</strong>" word | word "<strong>gt</strong>" word
               | word "<strong>-ge</strong>" word | word "<strong>ge</strong>" word
 
-wordlist    ::= word
-              | wordlist "<strong>,</strong>" word
-
-word        ::= word "<strong>.</strong>" word
-              | digit
+word        ::= digits
               | "<strong>'</strong>" string "<strong>'</strong>"
-              | "<strong>"</strong>" string "<strong>"</strong>"
+              | '<strong>"</strong>' string '<strong>"</strong>'
+              | word "<strong>.</strong>" word
               | variable
-              | rebackref
+              | sub
+              | join
               | function
+              | "<strong>(</strong>" word "<strong>)</strong>"
 
-string      ::= stringpart
-              | string stringpart
+list        ::= split
+              | listfunc
+              | "<strong>{</strong>" words "<strong>}</strong>"
+              | "<strong>(</strong>" list "<strong>)</strong>"
 
-stringpart  ::= cstring
+substring   ::= cstring
               | variable
-              | rebackref
-
-cstring     ::= ...
-digit       ::= [0-9]+
 
 variable    ::= "<strong>%{</strong>" varname "<strong>}</strong>"
               | "<strong>%{</strong>" funcname "<strong>:</strong>" funcargs "<strong>}</strong>"
+              | "<strong>%{:</strong>" word "<strong>:}</strong>"
+              | "<strong>%{:</strong>" cond "<strong>:}</strong>"
+              | rebackref
 
-rebackref   ::= "<strong>$</strong>" [0-9]
+sub         ::= "<strong>sub</strong>" ["<strong>(</strong>"] regsub "<strong>,</strong>" word ["<strong>)</strong>"]
 
-function     ::= funcname "<strong>(</strong>" wordlist "<strong>)</strong>"
+join        ::= "<strong>join</strong>" ["<strong>(</strong>"] list ["<strong>)</strong>"]
+              | "<strong>join</strong>" ["<strong>(</strong>"] list "<strong>,</strong>" word ["<strong>)</strong>"]
 
-listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pre>
+split       ::= "<strong>split</strong>" ["<strong>(</strong>"] regany "<strong>,</strong>" list ["<strong>)</strong>"]
+              | "<strong>split</strong>" ["<strong>(</strong>"] regany "<strong>,</strong>" word ["<strong>)</strong>"]
+
+function    ::= funcname "<strong>(</strong>" words "<strong>)</strong>"
+
+listfunc    ::= listfuncname "<strong>(</strong>" words "<strong>)</strong>"
+
+words       ::= word
+              | word "<strong>,</strong>" list
+
+regex       ::= "<strong>/</strong>" regpattern "<strong>/</strong>" [regflags]
+              | "<strong>m</strong>" regsep regpattern regsep [regflags]
+
+regsub      ::= "<strong>s</strong>" regsep regpattern regsep string regsep [regflags]
+
+regany      ::= regex | regsub
+
+regsep      ::= "/" | "#" | "$" | "%" | "^" | "|" | "?" | "!" | "'" | '"' | "," | ";" | ":" | "." | "_" | "-"
+
+regflags    ::= 1*("i" | "s" | "m" | "g")
+regpattern  ::= cstring ; except enclosing <em>regsep</em>
+
+rebackref   ::= "<strong>$</strong>" DIGIT
+
+digits      ::= 1*(DIGIT)
+cstring     ::= 0*(TEXT)
+
+TEXT        ::= &lt;any OCTET except CTLs&gt;
+DIGIT       ::= &lt;any US-ASCII digit "0".."9"&gt;</pre>
 </blockquote>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="vars" id="vars">Variables</a></h2>
+<h2><a name="vars" id="vars">Variables</a><a title="Permanent link" href="#vars" class="permalink">&para;</a></h2>
     
 
     <p>The expression parser provides a number of variables of the form
@@ -196,47 +238,52 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
             "<code>GET /index.html HTTP/1.1</code>")</td></tr>
 <tr class="odd"><td><code>REMOTE_ADDR</code></td>
         <td>The IP address of the remote host</td></tr>
-<tr><td><code>REMOTE_HOST</code></td>
+<tr><td><code>REMOTE_PORT</code></td>
+        <td>The port of the remote host (2.4.26 and later)</td></tr>
+<tr class="odd"><td><code>REMOTE_HOST</code></td>
         <td>The host name of the remote host</td></tr>
-<tr class="odd"><td><code>REMOTE_USER</code></td>
+<tr><td><code>REMOTE_USER</code></td>
         <td>The name of the authenticated user, if any (not available during <code class="directive">&lt;If&gt;</code>)</td></tr>
-<tr><td><code>REMOTE_IDENT</code></td>
+<tr class="odd"><td><code>REMOTE_IDENT</code></td>
         <td>The user name set by <code class="module"><a href="./mod/mod_ident.html">mod_ident</a></code></td></tr>
-<tr class="odd"><td><code>SERVER_NAME</code></td>
+<tr><td><code>SERVER_NAME</code></td>
         <td>The <code class="directive"><a href="./mod/core.html#servername">ServerName</a></code> of
             the current vhost</td></tr>
-<tr><td><code>SERVER_PORT</code></td>
+<tr class="odd"><td><code>SERVER_PORT</code></td>
         <td>The server port of the current vhost, see
             <code class="directive"><a href="./mod/core.html#servername">ServerName</a></code></td></tr>
-<tr class="odd"><td><code>SERVER_ADMIN</code></td>
+<tr><td><code>SERVER_ADMIN</code></td>
         <td>The <code class="directive"><a href="./mod/core.html#serveradmin">ServerAdmin</a></code> of
             the current vhost</td></tr>
-<tr><td><code>SERVER_PROTOCOL</code></td>
+<tr class="odd"><td><code>SERVER_PROTOCOL</code></td>
         <td>The protocol used by the request (e.g. HTTP/1.1). In some types of
             internal subrequests, this variable has the value
             <code>INCLUDED</code>.</td></tr>
-<tr class="odd"><td><code>SERVER_PROTOCOL_VERSION</code></td>
+<tr><td><code>SERVER_PROTOCOL_VERSION</code></td>
         <td>A number that encodes the HTTP version of the request:
             <code>1000 * major + minor</code>. For example, <code>1001</code>
             corresponds to HTTP/1.1 and <code>9</code> corresponds
             to HTTP/0.9</td></tr>
-<tr><td><code>SERVER_PROTOCOL_VERSION_MAJOR</code></td>
+<tr class="odd"><td><code>SERVER_PROTOCOL_VERSION_MAJOR</code></td>
         <td>The major version part of the HTTP version of the request,
             e.g. <code>1</code> for HTTP/1.0</td></tr>
-<tr class="odd"><td><code>SERVER_PROTOCOL_VERSION_MINOR</code></td>
+<tr><td><code>SERVER_PROTOCOL_VERSION_MINOR</code></td>
         <td>The minor version part of the HTTP version of the request,
             e.g. <code>0</code> for HTTP/1.0</td></tr>
-<tr><td><code>DOCUMENT_ROOT</code></td>
+<tr class="odd"><td><code>DOCUMENT_ROOT</code></td>
         <td>The <code class="directive"><a href="./mod/core.html#documentroot">DocumentRoot</a></code> of
             the current vhost</td></tr>
-<tr class="odd"><td><code>AUTH_TYPE</code></td>
+<tr><td><code>AUTH_TYPE</code></td>
         <td>The configured <code class="directive"><a href="./mod/mod_authn_core.html#authtype">AuthType</a></code> (e.g.
         "<code>basic</code>")</td></tr>
-<tr><td><code>CONTENT_TYPE</code></td>
+<tr class="odd"><td><code>CONTENT_TYPE</code></td>
         <td>The content type of the response (not available during <code class="directive">&lt;If&gt;</code>)</td></tr>
-<tr class="odd"><td><code>HANDLER</code></td>
+<tr><td><code>HANDLER</code></td>
         <td>The name of the <a href="handler.html">handler</a> creating
             the response</td></tr>
+<tr class="odd"><td><code>HTTP2</code></td>
+        <td>"<code>on</code>" if the request uses http/2,
+            "<code>off</code>" otherwise</td></tr>
 <tr><td><code>HTTPS</code></td>
         <td>"<code>on</code>" if the request uses https,
             "<code>off</code>" otherwise</td></tr>
@@ -266,12 +313,12 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
 <tr><td><code>TIME_YEAR</code></td>
         <td>The current year (e.g. <code>2010</code>)</td></tr>
 <tr class="odd"><td><code>TIME_MON</code></td>
-        <td>The current month (<code>1</code>, ..., <code>12</code>)</td></tr>
+        <td>The current month (<code>01</code>, ..., <code>12</code>)</td></tr>
 <tr><td><code>TIME_DAY</code></td>
-        <td>The current day of the month</td></tr>
+        <td>The current day of the month (<code>01</code>, ...)</td></tr>
 <tr class="odd"><td><code>TIME_HOUR</code></td>
         <td>The hour part of the current time
-            (<code>0</code>, ..., <code>23</code>)</td></tr>
+            (<code>00</code>, ..., <code>23</code>)</td></tr>
 <tr><td><code>TIME_MIN</code></td>
         <td>The minute part of the current time </td></tr>
 <tr class="odd"><td><code>TIME_SEC</code></td>
@@ -291,9 +338,24 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
     <p>Some modules register additional variables, see e.g.
     <code class="module"><a href="./mod/mod_ssl.html">mod_ssl</a></code>.</p>
 
+    <p>Any variable can be embedded in a <em>string</em>, both in quoted
+    strings from boolean expressions but also in string expressions,
+    resulting in the concatenation of the constant and dynamic parts as
+    expected.</p>
+
+    <p>There exists another form of variables (temporaries) expressed like
+    <code>%{:<em>word</em>:}</code> and which allow embedding of the more
+    powerful <em>word</em> syntax (and constructs) in both type of expressions,
+    without colliding with the constant part of such strings. They are mainly
+    useful in string expressions though, since the <em>word</em> is directly
+    available in boolean expressions already. By using this form of variables,
+    one can evaluate regexes, substitutions, join and/or split strings and
+    lists in the scope of string expressions, hence construct complex strings
+    dynamically.</p>
+
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="binop" id="binop">Binary operators</a></h2>
+<h2><a name="binop" id="binop">Binary operators</a><a title="Permanent link" href="#binop" class="permalink">&para;</a></h2>
     
 
     <p>With the exception of some built-in comparison operators, binary
@@ -369,7 +431,7 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="unnop" id="unnop">Unary operators</a></h2>
+<h2><a name="unnop" id="unnop">Unary operators</a><a title="Permanent link" href="#unnop" class="permalink">&para;</a></h2>
     
 
     <p>Unary operators take one argument and have the form
@@ -427,14 +489,14 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
     like <code class="module"><a href="./mod/mod_include.html">mod_include</a></code>.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="functions" id="functions">Functions</a></h2>
+<h2><a name="functions" id="functions">Functions</a><a title="Permanent link" href="#functions" class="permalink">&para;</a></h2>
     
 
     <p>Normal string-valued functions take one string as argument and return
     a string. Functions names are not case sensitive.
     Modules may register additional functions.</p>
 
-    <table class="bordered"><tr class="header"><th>Name</th><th>Description</th><th>Restricted</th></tr>
+    <table class="bordered"><tr class="header"><th>Name</th><th>Description</th><th>Special notes</th></tr>
 <tr><td><code>req</code>, <code>http</code></td>
         <td>Get HTTP request header; header names may be added to the Vary
             header, see below</td><td /></tr>
@@ -446,15 +508,16 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
             during <code class="directive">&lt;If&gt;</code>)</td><td /></tr>
 <tr class="odd"><td><code>reqenv</code></td>
         <td>Lookup request environment variable (as a shortcut,
-        <code>v</code> can be used too to access
-        variables)</td><td /></tr>
+        <code>v</code> can also be used to access variables). 
+        </td>
+        <td>ordering</td></tr>
 <tr><td><code>osenv</code></td>
         <td>Lookup operating system environment variable</td><td /></tr>
 <tr class="odd"><td><code>note</code></td>
-        <td>Lookup request note</td><td /></tr>
+        <td>Lookup request note</td><td>ordering</td></tr>
 <tr><td><code>env</code></td>
         <td>Return first match of <code>note</code>, <code>reqenv</code>,
-            <code>osenv</code></td><td /></tr>
+            <code>osenv</code></td><td>ordering</td></tr>
 <tr class="odd"><td><code>tolower</code></td>
         <td>Convert string to lower case</td><td /></tr>
 <tr><td><code>toupper</code></td>
@@ -477,23 +540,43 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
             encoding</td><td /></tr>
 <tr class="odd"><td><code>file</code></td>
         <td>Read contents from a file (including line endings, when present)
-        </td><td>yes</td></tr>
+        </td><td>restricted</td></tr>
 <tr><td><code>filemod</code></td>
         <td>Return last modification time of a file (or 0 if file does not exist
-            or is not regular file)</td><td>yes</td></tr>
+            or is not regular file)</td><td>restricted</td></tr>
 <tr class="odd"><td><code>filesize</code></td>
         <td>Return size of a file (or 0 if file does not exist or is not
-            regular file)</td><td>yes</td></tr>
+            regular file)</td><td>restricted</td></tr>
 <tr><td><code>ldap</code></td>
         <td>Escape characters as required by LDAP distinguished name escaping
             (RFC4514) and LDAP filter escaping (RFC4515).</td><td /></tr>
 <tr class="odd"><td><code>replace</code></td>
-        <td>replace(string, "from", "to") replaces all occurences of "from"
+        <td>replace(string, "from", "to") replaces all occurrences of "from"
             in the string with "to".</td><td /></tr>
 </table>
 
-    <p>The functions marked as "restricted" are not available in some modules
-    like <code class="module"><a href="./mod/mod_include.html">mod_include</a></code>.</p>
+    <p>The functions marked as "restricted" in the final column are not 
+    available in some modules like <code class="module"><a href="./mod/mod_include.html">mod_include</a></code>.</p>
+
+    <p>The functions marked as "ordering" in the final column require some
+    consideration for the ordering of different components of the server,
+    especially when the function is used within the 
+    &lt;<code class="directive"><a href="./mod/core.html#if">If</a></code>&gt; directive which is
+    evaluated relatively early.</p>
+    <div class="note">
+    <h3>Environment variable ordering</h3>
+    When environment variables are looked up within an 
+    &lt;<code class="directive"><a href="./mod/core.html#if">If</a></code>&gt; condition, it's important 
+    to consider how extremely early in request processing that this 
+    resolution occurs. As a guideline, any directive defined outside of virtual host 
+    context (directory, location, htaccess) is not likely to have yet had a 
+    chance to execute. <code class="directive"><a href="./mod/mod_setenvif.html#setenvif">SetEnvIf</a></code>
+    in virtual host scope is one directive that runs prior to this resolution
+    <br />
+    <br />
+    When <code>reqenv</code> is used outside of &lt;<code class="directive"><a href="./mod/core.html#if">If</a></code>&gt;, the resolution will generally occur later, but the 
+    exact timing depends on the directive the expression has been used within.
+    </div>
 
     <p>When the functions <code>req</code> or <code>http</code> are used,
     the header name will automatically be added to the Vary header of the
@@ -503,7 +586,7 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
 
     <p>In addition to string-valued functions, there are also
     list-valued functions which take one string as argument and return a
-    wordlist, i.e. a list of strings. The wordlist can be used with the
+    list, i.e. a list of strings. The list can be used with the
     special <code>-in</code> operator.  Functions names are not case
     sensitive.  Modules may register additional functions.</p>
 
@@ -515,14 +598,14 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="examples" id="examples">Example expressions</a></h2>
+<h2><a name="examples" id="examples">Example expressions</a><a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
 
-	
+    
     <p>The following examples show how expressions might be used to
     evaluate requests:</p>
 
-	
-	<pre class="prettyprint lang-config"># Compare the host name to example.com and redirect to www.example.com if it matches
+    
+    <pre class="prettyprint lang-config"># Compare the host name to example.com and redirect to www.example.com if it matches
 &lt;If "%{HTTP_HOST} == 'example.com'"&gt;
     Redirect permanent "/" "http://www.example.com/"
 &lt;/If&gt;
@@ -555,26 +638,46 @@ listfunction ::= listfuncname "<strong>(</strong>" word "<strong>)</strong>"</pr
 &lt;/If&gt;
 &lt;/Directory&gt;
 
+# Check against the client IP
+&lt;If "-R '192.168.1.0/24'"&gt;
+    Header set matched true
+&lt;/If&gt;
+
 # Function examples in boolean context
 &lt;If "md5('foo') == 'acbd18db4cc2f85cedef654fccc4a4d8'"&gt;
   Header set checksum-matched true
 &lt;/If&gt;
-&lt;If "md5('foo') == replace('md5:XXXd18db4cc2f85cedef654fccc4a4d8', 'md5:XXX', 'acb')&gt;
+&lt;If "md5('foo') == replace('md5:XXXd18db4cc2f85cedef654fccc4a4d8', 'md5:XXX', 'acb')"&gt;
   Header set checksum-matched-2 true
 &lt;/If&gt;
 
 # Function example in string context
-Header set foo-checksum "expr=%{md5:foo}"</pre>
+Header set foo-checksum "expr=%{md5:foo}"
+
+# This delays the evaluation of the condition clause compared to &lt;If&gt;
+Header always set CustomHeader my-value "expr=%{REQUEST_URI} =~ m#^/special_path\.php$#"
+
+# Add a header to forward client's certificate SAN to some backend
+RequestHeader set X-Client-SAN "expr=%{:join PeerExtList('subjectAltName'):}"
+
+# Require that the remote IP be in the client's certificate SAN
+Require expr %{REMOTE_ADDR} -in split s/.*?IP Address:([^,]+)/$1/, PeerExtList('subjectAltName')
+# or alternatively:
+Require expr "IP Address:%{REMOTE_ADDR}" -in split/, /, join PeerExtList('subjectAltName')
+
+# Conditional logging
+CustomLog logs/access-errors.log common "expr=%{REQUEST_STATUS} &gt;= 400"
+CustomLog logs/access-errors-specific.log common "expr=%{REQUEST_STATUS} -in {'405','410'}"</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="other" id="other">Other</a></h2>
+<h2><a name="other" id="other">Other</a><a title="Permanent link" href="#other" class="permalink">&para;</a></h2>
     
 
     <table class="bordered"><tr class="header"><th>Name</th><th>Alternative</th> <th>Description</th></tr>
 <tr><td><code>-in</code></td>
         <td><code>in</code></td>
-        <td>string contained in wordlist</td></tr>
+        <td>string contained in list</td></tr>
 <tr class="odd"><td><code>/regexp/</code></td>
         <td><code>m#regexp#</code></td>
         <td>Regular expression (the second form allows different
@@ -598,14 +701,14 @@ Header set foo-checksum "expr=%{md5:foo}"</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="sslrequire" id="sslrequire">Comparison with SSLRequire</a></h2>
+<h2><a name="sslrequire" id="sslrequire">Comparison with SSLRequire</a><a title="Permanent link" href="#sslrequire" class="permalink">&para;</a></h2>
     
     <p>The <em>ap_expr</em> syntax is mostly a superset of the syntax of the
     deprecated <code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code> directive.
     The differences are described in <code class="directive"><a href="./mod/mod_ssl.html#sslrequire">SSLRequire</a></code>'s documentation.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="compatibility" id="compatibility">Version History</a></h2>
+<h2><a name="compatibility" id="compatibility">Version History</a><a title="Permanent link" href="#compatibility" class="permalink">&para;</a></h2>
     
     <p>The <code>req_novary</code> <a href="#functions">function</a>
     is available for versions 2.4.4 and later.</p>
@@ -636,7 +739,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/expr.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

@@ -26,7 +26,7 @@ Release history:
     [NOTE that x.{odd}.z versions are strictly Alpha/Beta releases,
           while x.{even}.z versions are Stable/GA releases.]
 
-    2.5.0   : In Development.
+-8s    2.5.0   : In Development.
 
 Contributors looking for a mission:
 
@@ -50,10 +50,25 @@ CURRENT RELEASE NOTES:
 
 RELEASE SHOWSTOPPERS:
 
+
+CURRENT VOTES:
+
+
 THINGS THAT SHOULD BE CONSIDERED EARLY IN THE 2.6/3.0 DEVELOPMENT CYCLE:
 
+  * Seriously ramp up/replace test framework and cases to have better
+    coverage of existing special cases and behaviours users rely on.
+
+  * Add performance testing to the test framework.
+
+  * Competely untangle core filesystem behavior where a filesystem htdocs/
+    resource wasn't indicated by the request URI.
+
+  * Refactor r->uri into a %escaped raw form presented by the client, and
+    a distinct decoded field used only for local filesystem access.
+
   * Change default prefix from /usr/local/apache2 to something corresponding
-    to the project name. Rename apachectl.
+    to the project name. Rename apachectl to httpdctl.
 
   * Change merge order of <Location> to be most specific match last. This
     is more consistent with <Directory> and allows some optimizations for the
@@ -63,6 +78,82 @@ THINGS THAT SHOULD BE CONSIDERED EARLY IN THE 2.6/3.0 DEVELOPMENT CYCLE:
     Maybe it even suffices to add LUA_COMPAT_MODULE and individually
     care about the two remaining incompatible code lines (one with lua_strlen,
     one with lua_objlen).
+
+  * Event's timeout_mutex to enter keepalive state probably needs some
+    analysis/attention.
+  
+  * Better H2 integration?
+    - adding handling of slave connections to mpm, no extra H2 workers, 
+      triggering "events" read/write/timer from main/slave
+    - add slave writes/done/abort to events that wake up master connection
+    - disentangle core filters to server one purpose only, so that H2
+      versions can reuse them properly.
+ 
+  * Remove mod_access_compat?
+
+  * Ditch platforms/89/old prereqs or anything else?
+
+  * Leverage libmill? Drop serf?
+
+  * Better abstraction of slave connections and "requests".
+    - add abstraction for "response" as something that can be passed 
+      through filters. To be serialized into the correct HTTP bytes on
+      the main connection.
+    - solve multi-threaded access to master connection props/module conf
+      (e.g. ssl vars)
+    
+  * make mod_ssl more "core"?
+  
+  * add high-level server configuration directives that can steer/influence
+    module defaults/warn/rejects related to security 
+  
+  * Ditch HTTP/0.9? At least, make HttpProtocolOptions Require1.0 the default.
+
+  * Restructure merge fn table/indexes to ignore modules with no directives,
+    and permit modules with dozens upon dozens of merge values to split these
+    into multiple functional config groups to avoid excessive merging.
+    Retitle from 'per-dir' to 'per-location' to better reflect the always-run
+    sections (location, ifexpr etc), while we phase out the file-oriented
+    bias from httpd.
+
+  * New versioning or release cadence.
+
+  * Ditch old APIs when we have the chance with 3.x. Consolidate current
+    functionality into APIs with stronger guarantees. (Specific examples TBD.)
+
+  * Remove as many undesirable-but-kept-for-backwards-compatibility behaviors
+    as possible from current config directives. (Specific examples TBD.)
+
+  * True event-loop/asynchronous support in the server core.
+
+  * Modify configuration syntax to separate meta-directives from runtime
+    directives (e.g. If vs. IfVersion). Allow as much static analysis of the
+    configuration as possible without needing to start the server to figure out
+    what's going on.
+
+  * Support JSON-like configuration files
+
+  * Opaque data structures w/ getters/setters 
+
+  * Generic interface to enable runtime changes (adjusting log level, modifying
+    balancer information, toggling flags on/off). Perhaps modules can register
+    callbacks for making these changes?
+
+  * REST-based administration for existing (balancer/etc) and new dynamic
+    runtime changes (see above)
+
+  * Improve the look of generated pages (status, load-balancer...) with dynamic
+    update of the values. Generate HTML5 pages, instead of 3.2, Get rid of XHTML
+    in the generated pages.
+
+  * Add performance monitoring of the server, of each module (?), in order to help
+    understanding what worth looking at in order to improve overall performance.
+    (https://cdn.wp.nginx.com/wp-content/uploads/2016/12/Amplify-Dashboards-page-base-for-filters.png)
+
+  * Drop CGI-1.1-incompatible behaviors kept for compatibility reasons with
+    "broken" server implementations (PR 51517). (Note that many of them are
+    "broken" *because* of our behaviors.)
+
 
 OLD ISSUES THAT WERE THOUGHT TO BE SHOWSTOPPERS FOR 2.4 BUT OBVIOUSLY WEREN'T:
 
@@ -76,22 +167,12 @@ OLD ISSUES THAT WERE THOUGHT TO BE SHOWSTOPPERS FOR 2.4 BUT OBVIOUSLY WEREN'T:
   * the edge connection filter cannot be removed 
     http://marc.theaimsgroup.com/?l=apache-httpd-dev&m=105366252619530&w=2
     http://mail-archives.apache.org/mod_mbox/httpd-dev/200501.mbox/%3C41E30B42.4060202@stason.org%3E
-
     jerenkrantz asks: Why should this block a release?
-
     stas replies: because it requires a rewrite of the filters stack
           implementation (you have suggested that) and once 2.2 is
           released you can't do that anymore. 
-
     pgollucci: this affects mod_perl I'm pretty sure.
 
-CURRENT VOTES:
-
-  * Name the Server (version 2.4 or 3.0, depending on the final call)
-    Recent discussion indicates we should designate a (short name).
-    This is not yet a [Vote] - Your nominations please:
-      * Apache HTTP Server (httpd)
-        +1: sctemme (why mess with it?), pgollucci
 
 RELEASE NON-SHOWSTOPPERS BUT WOULD BE REAL NICE TO WRAP THESE UP:
 
@@ -124,6 +205,8 @@ RELEASE NON-SHOWSTOPPERS BUT WOULD BE REAL NICE TO WRAP THESE UP:
                       if these rise to showstopper status.
     wrowe suggests: it would be nice to see "MUST" v.s. "SHOULD" v.s. "MAY"
                     out of this list, without reviewing them individually.
+    wrowe asks: what is lingering after 2.4.25 release? Offhand, only
+                URI conformance
 
   * pipes deadlock on all platforms with limited pipe buffers (e.g. both
     Linux and Win32, as opposed to only Win32 on 1.3).  The right solution

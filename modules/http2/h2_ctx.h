@@ -1,11 +1,12 @@
-/* Copyright 2015 greenbytes GmbH (https://www.greenbytes.de)
+/* Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,14 +17,9 @@
 #ifndef __mod_h2__h2_ctx__
 #define __mod_h2__h2_ctx__
 
-struct h2_task_env;
+struct h2_session;
+struct h2_task;
 struct h2_config;
-
-typedef enum {
-    H2_PNEGO_NONE,
-    H2_PNEGO_STARTED,
-    H2_PNEGO_DONE,    
-} h2_pnego_state_t;
 
 /**
  * The h2 module context associated with a connection. 
@@ -34,18 +30,25 @@ typedef enum {
  * - those created by ourself to perform work on HTTP/2 streams
  */
 typedef struct h2_ctx {
-    int is_h2;                    /* h2 engine is used */
-    h2_pnego_state_t pnego_state; /* protocol negotiation state */
-    const char *protocol;         /* the protocol negotiated */
-    struct h2_task_env *task_env; /* the h2_task environment or NULL */
-    const char *hostname;         /* hostname negotiated via SNI, optional */
-    server_rec *server;           /* httpd server config selected. */
-    struct h2_config *config;     /* effective config in this context */
+    const char *protocol;           /* the protocol negotiated */
+    struct h2_session *session;     /* the session established */
+    struct h2_task *task;           /* the h2_task executing or NULL */
+    const char *hostname;           /* hostname negotiated via SNI, optional */
+    server_rec *server;             /* httpd server config selected. */
+    const struct h2_config *config; /* effective config in this context */
 } h2_ctx;
 
-h2_ctx *h2_ctx_get(const conn_rec *c);
+/**
+ * Get (or create) a h2 context record for this connection.
+ * @param c the connection to look at
+ * @param create != 0 iff missing context shall be created
+ * @return h2 context of this connection
+ */
+h2_ctx *h2_ctx_get(const conn_rec *c, int create);
+void h2_ctx_clear(const conn_rec *c);
+
 h2_ctx *h2_ctx_rget(const request_rec *r);
-h2_ctx *h2_ctx_create_for(const conn_rec *c, struct h2_task_env *env);
+h2_ctx *h2_ctx_create_for(const conn_rec *c, struct h2_task *task);
 
 
 /* Set the h2 protocol established on this connection context or
@@ -53,11 +56,13 @@ h2_ctx *h2_ctx_create_for(const conn_rec *c, struct h2_task_env *env);
  */
 h2_ctx *h2_ctx_protocol_set(h2_ctx *ctx, const char *proto);
 
-/**
- * Returns != 0 iff protocol negotiation has started but is not
- * done yet.
+/* Set the server_rec relevant for this context.
  */
-int h2_ctx_pnego_is_ongoing(h2_ctx *ctx);
+h2_ctx *h2_ctx_server_set(h2_ctx *ctx, server_rec *s);
+server_rec *h2_ctx_server_get(h2_ctx *ctx);
+
+struct h2_session *h2_ctx_session_get(h2_ctx *ctx);
+void h2_ctx_session_set(h2_ctx *ctx, struct h2_session *session);
 
 /**
  * Get the h2 protocol negotiated for this connection, or NULL.
@@ -65,8 +70,9 @@ int h2_ctx_pnego_is_ongoing(h2_ctx *ctx);
 const char *h2_ctx_protocol_get(const conn_rec *c);
 
 int h2_ctx_is_task(h2_ctx *ctx);
-int h2_ctx_is_active(h2_ctx *ctx);
 
-struct h2_task_env *h2_ctx_get_task(h2_ctx *ctx);
+struct h2_task *h2_ctx_get_task(h2_ctx *ctx);
+struct h2_task *h2_ctx_cget_task(conn_rec *c);
+struct h2_task *h2_ctx_rget_task(request_rec *r);
 
 #endif /* defined(__mod_h2__h2_ctx__) */

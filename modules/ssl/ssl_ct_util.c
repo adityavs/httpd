@@ -91,21 +91,6 @@ void ctutil_buffer_to_array(apr_pool_t *p, const char *b,
     *out = arr;
 }
 
-int ctutil_in_array(const char *needle, const apr_array_header_t *haystack)
-{
-    const char * const *elts;
-    int i;
-
-    elts = (const char * const *)haystack->elts;
-    for (i = 0; i < haystack->nelts; i++) {
-        if (!strcmp(needle, elts[i])) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
 apr_status_t ctutil_fopen(const char *fn, const char *mode, FILE **f)
 {
     apr_status_t rv;
@@ -216,7 +201,7 @@ apr_status_t ctutil_read_file(apr_pool_t *p,
         rv = APR_ENOSPC;
         ap_log_error(APLOG_MARK, APLOG_ERR, rv, s,
                      APLOGNO(02781) "size %" APR_OFF_T_FMT " of %s exceeds "
-                     "limit (%" APR_SIZE_T_FMT ")", finfo.size, fn, limit);
+                     "limit (%" APR_OFF_T_FMT ")", finfo.size, fn, limit);
         apr_file_close(f);
         return rv;
     }
@@ -467,9 +452,11 @@ void ctutil_log_array(const char *file, int line, int module_index,
     const char **elts = (const char **)arr->elts;
     int i;
 
+    /* Intentional no APLOGNO */
     ap_log_error(file, line, module_index, level,
                  0, s, "%s", desc);
     for (i = 0; i < arr->nelts; i++) {
+        /* Intentional no APLOGNO */
         ap_log_error(file, line, module_index, level,
                      0, s, ">>%s", elts[i]);
     }
@@ -509,7 +496,7 @@ apr_status_t ctutil_deserialize_uint16(const unsigned char **mem,
                                        apr_uint16_t *pval)
 {
     apr_status_t rv;
-    apr_uint64_t val64;
+    apr_uint64_t val64 = 0;
 
     rv = deserialize_uint(mem, avail, 16, &val64);
     *pval = (apr_uint16_t)val64;
@@ -672,10 +659,10 @@ void ctutil_run_internal_tests(apr_pool_t *p)
 
     ctutil_buffer_to_array(p, filecontents, strlen(filecontents), &arr);
     
-    ap_assert(ctutil_in_array(TESTURL1, arr));
-    ap_assert(ctutil_in_array(TESTURL2, arr));
-    ap_assert(ctutil_in_array(TESTURL3, arr));
-    ap_assert(!ctutil_in_array(TESTURL1 "x", arr));
+    ap_assert(ap_array_str_contains(arr, TESTURL1));
+    ap_assert(ap_array_str_contains(arr, TESTURL2));
+    ap_assert(ap_array_str_contains(arr, TESTURL3));
+    ap_assert(!ap_array_str_contains(arr, TESTURL1 "x"));
 
     ch = buf;
     avail = 8;

@@ -161,7 +161,7 @@ struct magic {
         unsigned char hl[4];   /* 2 bytes of a fixed-endian "long" */
     } value;                   /* either number or string */
     unsigned long mask;        /* mask before comparison with value */
-    char nospflag;             /* supress space character */
+    char nospflag;             /* suppress space character */
 
     /* NOTE: this string is suspected of overrunning - find it! */
     char desc[MAXDESC];        /* description */
@@ -984,7 +984,7 @@ static int apprentice(server_rec *s, apr_pool_t *p)
 
 #if MIME_MAGIC_DEBUG
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, APLOGNO(01516)
-                MODNAME ": apprentice conf=%x file=%s m=%s m->next=%s last=%s",
+                MODNAME ": apprentice conf=%pp file=%s m=%s m->next=%s last=%s",
                 conf,
                 conf->magicfile ? conf->magicfile : "NULL",
                 conf->magic ? "set" : "NULL",
@@ -1007,10 +1007,10 @@ static int apprentice(server_rec *s, apr_pool_t *p)
             ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, APLOGNO(01519)
                         MODNAME ": apprentice: POINTER CLOBBERED! "
                         "m=\"%c%c%c%c\" line=%d",
-                        (((unsigned long) m) >> 24) & 255,
-                        (((unsigned long) m) >> 16) & 255,
-                        (((unsigned long) m) >> 8) & 255,
-                        ((unsigned long) m) & 255,
+                        (char)((((unsigned long) m) >> 24) & 255),
+                        (char)((((unsigned long) m) >> 16) & 255),
+                        (char)((((unsigned long) m) >> 8 ) & 255),
+                        (char)(( (unsigned long) m       ) & 255),
                         prevm ? prevm->lineno : -1);
             break;
         }
@@ -1276,7 +1276,7 @@ static int parse(server_rec *serv, apr_pool_t *p, char *l, int lineno)
 
 #if MIME_MAGIC_DEBUG
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, serv, APLOGNO(01525)
-                MODNAME ": parse line=%d m=%x next=%x cont=%d desc=%s",
+                MODNAME ": parse line=%d m=%pp next=%pp cont=%d desc=%s",
                 lineno, m, m->next, m->cont_level, m->desc);
 #endif /* MIME_MAGIC_DEBUG */
 
@@ -1541,7 +1541,7 @@ static int match(request_rec *r, unsigned char *s, apr_size_t nbytes)
 
 #if MIME_MAGIC_DEBUG
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01529)
-                MODNAME ": match conf=%x file=%s m=%s m->next=%s last=%s",
+                MODNAME ": match conf=%pp file=%s m=%s m->next=%s last=%s",
                 conf,
                 conf->magicfile ? conf->magicfile : "NULL",
                 conf->magic ? "set" : "NULL",
@@ -1558,10 +1558,10 @@ static int match(request_rec *r, unsigned char *s, apr_size_t nbytes)
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01530)
                         MODNAME ": match: POINTER CLOBBERED! "
                         "m=\"%c%c%c%c\"",
-                        (((unsigned long) m) >> 24) & 255,
-                        (((unsigned long) m) >> 16) & 255,
-                        (((unsigned long) m) >> 8) & 255,
-                        ((unsigned long) m) & 255);
+                        (char)((((unsigned long) m) >> 24) & 255),
+                        (char)((((unsigned long) m) >> 16) & 255),
+                        (char)((((unsigned long) m) >> 8 ) & 255),
+                        (char)(( (unsigned long) m       ) & 255));
             break;
         }
     }
@@ -1591,7 +1591,7 @@ static int match(request_rec *r, unsigned char *s, apr_size_t nbytes)
 #if MIME_MAGIC_DEBUG
                 rule_counter++;
                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(01532)
-                        MODNAME ": line=%d mc=%x mc->next=%x cont=%d desc=%s",
+                        MODNAME ": line=%d mc=%pp mc->next=%pp cont=%d desc=%s",
                             m_cont->lineno, m_cont,
                             m_cont->next, m_cont->cont_level,
                             m_cont->desc);
@@ -2389,10 +2389,10 @@ static int magic_init(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server
                     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, APLOGNO(01559)
                                 MODNAME ": magic_init 1: POINTER CLOBBERED! "
                                 "m=\"%c%c%c%c\" line=%d",
-                                (((unsigned long) m) >> 24) & 255,
-                                (((unsigned long) m) >> 16) & 255,
-                                (((unsigned long) m) >> 8) & 255,
-                                ((unsigned long) m) & 255,
+                                (char)((((unsigned long) m) >> 24) & 255),
+                                (char)((((unsigned long) m) >> 16) & 255),
+                                (char)((((unsigned long) m) >> 8 ) & 255),
+                                (char)(( (unsigned long) m       ) & 255),
                                 prevm ? prevm->lineno : -1);
                     break;
                 }

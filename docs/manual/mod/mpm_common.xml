@@ -34,8 +34,8 @@ switch before dumping core</description>
 <syntax>CoreDumpDirectory <var>directory</var></syntax>
 <default>See usage for the default setting</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>prefork</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module></modulelist>
 
 <usage>
     <p>This controls the directory to which Apache httpd attempts to
@@ -86,8 +86,8 @@ after a crash</description>
 <default>EnableExceptionHook Off</default>
 <contextlist><context>server config</context></contextlist>
 <modulelist>
-<module>event</module><module>prefork</module>
-<module>worker</module></modulelist>
+<module>event</module><module>worker</module>
+<module>prefork</module></modulelist>
 
 <usage>
     <p>For safety reasons this directive is only available if the server was
@@ -98,7 +98,7 @@ after a crash</description>
     <p>There are already two modules, <code>mod_whatkilledus</code> and
     <code>mod_backtrace</code> that make use of this hook. Please have a
     look at Jeff Trawick's <a
-    href="http://people.apache.org/~trawick/exception_hook.html"
+    href="https://emptyhammock.com/projects/httpd/diag/"
     >EnableExceptionHook site</a> for more information about these.</p>
 </usage>
 </directivesynopsis>
@@ -110,8 +110,8 @@ will exit.</description>
 <syntax>GracefulShutdownTimeout <var>seconds</var></syntax>
 <default>GracefulShutdownTimeout 0</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>prefork</module><module>worker</module>
-<module>event</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module></modulelist>
 
 <usage>
     <p>The <directive>GracefulShutdownTimeout</directive> specifies
@@ -130,8 +130,9 @@ of the daemon</description>
 <syntax>PidFile <var>filename</var></syntax>
 <default>PidFile httpd.pid</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_winnt</module>
-<module>mpmt_os2</module><module>prefork</module><module>worker</module>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpmt_os2</module>
 </modulelist>
 
 <usage>
@@ -172,10 +173,9 @@ of the daemon</description>
 listens to</description>
 <syntax>Listen [<var>IP-address</var>:]<var>portnumber</var> [<var>protocol</var>]</syntax>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>mpm_netware</module><module>mpm_winnt</module>
-<module>mpmt_os2</module>
-<module>prefork</module><module>worker</module>
-<module>event</module>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
 </modulelist>
 
 <usage>
@@ -257,13 +257,12 @@ listeners' buckets</description>
 <syntax>ListenCoresBucketsRatio <var>ratio</var></syntax>
 <default>ListenCoresBucketsRatio 0 (disabled)</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist>
-<module>event</module>
+<modulelist><module>event</module><module>worker</module>
 <module>prefork</module>
-<module>worker</module></modulelist>
-<compatibility>Available in Apache HTTP Server 2.4.13, with a kernel supporting
+</modulelist>
+<compatibility>Available in Apache HTTP Server 2.4.17, with a kernel supporting
 the socket option <code>SO_REUSEPORT</code> and distributing new connections
-evenly accross listening processes' (or threads') sockets using it (eg. Linux
+evenly across listening processes' (or threads') sockets using it (eg. Linux
 3.9 and later, but not the current implementations of <code>SO_REUSEPORT</code>
 in *BSDs.</compatibility>
 
@@ -275,6 +274,13 @@ in *BSDs.</compatibility>
     then make each child handle a single bucket (with round-robin distribution
     of the buckets at children creation time).</p>
 
+    <note><title>Meaning of "online" CPU core</title>
+    <p>On Linux (and also BSD) a CPU core can be turned on/off if 
+    <a href="https://www.kernel.org/doc/Documentation/cpu-hotplug.txt">Hotplug</a> 
+    is configured, therefore <directive>ListenCoresBucketsRatio</directive> needs to
+    take this parameter into account while calculating the number of buckets to create.</p>
+    </note>
+
     <p><directive>ListenCoresBucketsRatio</directive> can improve the
     scalability when accepting new connections is/becomes the bottleneck.
     On systems with a large number of CPU cores, enabling this feature has
@@ -284,7 +290,37 @@ in *BSDs.</compatibility>
     <p>There must be at least twice the number of CPU cores than the
     configured <var>ratio</var> for this to be active. The recommended
     <var>ratio</var> is <code>8</code>, hence at least <code>16</code>
-    cores should be available at runtime when this value is used.</p>
+    cores should be available at runtime when this value is used.
+    The right <var>ratio</var> to obtain maximum performance needs to be calculated
+    for each target system, testing multiple values and observing the variations in your 
+    key performance metrics.</p>
+
+    <p>This directive influences the calculation of the 
+    <directive module="mpm_common">MinSpareThreads</directive> and 
+    <directive module="mpm_common">MaxSpareThreads</directive> lower bound values.
+    The number of children processes needs to be a multiple of the number 
+    of buckets to optimally accept connections.</p>
+
+    <note>
+    <title>Multiple <directive>Listen</directive>ers or Apache HTTP servers on
+    the same IP address and port</title>
+    <p>Setting the <code>SO_REUSEPORT</code> option on the listening socket(s)
+    consequently allows multiple processes (sharing the same <code>EUID</code>,
+    e.g. <code>root</code>) to bind to the the same IP address and port,
+    without the binding error raised by the system in the usual case.</p>
+    <p>This also means that multiple instances of Apache httpd configured on a
+    same <code>IP:port</code> and with a positive <directive>ListenCoresBucketsRatio</directive>
+    would start without an error too, and then run with incoming connections
+    evenly distributed accross both instances (this is NOT a recommendation or
+    a sensible usage in any case, but just a notice that it would prevent such
+    possible issues to be detected).</p>
+    <p>Within the same instance, Apache httpd will check and fail to start if
+    multiple <directive>Listen</directive> directives on the exact same IP (or
+    hostname) and port are configured, thus avoiding the creation of some
+    duplicated buckets which would be useless and kill performances.  However
+    it can't (and won't try harder to) catch all the possible overlapping cases
+    (like a hostname resolving to an IP used elsewhere).</p>
+    </note>
 </usage>
 </directivesynopsis>
 
@@ -294,11 +330,10 @@ in *BSDs.</compatibility>
 <syntax>ListenBacklog <var>backlog</var></syntax>
 <default>ListenBacklog 511</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist>
-<module>event</module>
-<module>mpm_netware</module><module>mpm_winnt</module>
-<module>mpmt_os2</module><module>prefork</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 
 <usage>
     <p>The maximum length of the queue of pending connections.
@@ -322,8 +357,8 @@ simultaneously</description>
 <syntax>MaxRequestWorkers <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>prefork</module>
-<module>worker</module>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module>
 </modulelist>
 
 <usage>
@@ -365,8 +400,9 @@ to hold without calling <code>free()</code></description>
 <syntax>MaxMemFree <var>KBytes</var></syntax>
 <default>MaxMemFree 2048</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>prefork</module><module>worker</module><module>mpm_winnt</module>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module>
 </modulelist>
 
 <usage>
@@ -385,9 +421,10 @@ will handle during its life</description>
 <syntax>MaxConnectionsPerChild <var>number</var></syntax>
 <default>MaxConnectionsPerChild 0</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpm_winnt</module><module>mpmt_os2</module>
-<module>prefork</module><module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 <compatibility>Available Apache HTTP Server 2.3.9 and later. The old name
 <code>MaxRequestsPerChild</code> is still supported.</compatibility>
 
@@ -411,18 +448,21 @@ will handle during its life</description>
 <syntax>MaxSpareThreads <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpmt_os2</module><module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 
 <usage>
     <p>Maximum number of idle threads. Different MPMs deal with this
     directive differently.</p>
 
-    <p>For <module>worker</module>, the default is
-    <code>MaxSpareThreads 250</code>. This MPM deals with idle threads
+    <p>For <module>worker</module> and <module>event</module>, the default is
+    <code>MaxSpareThreads 250</code>. These MPMs deal with idle threads
     on a server-wide basis. If there are too many idle threads in the
     server then child processes are killed until the number of idle
-    threads is less than this number.</p>
+    threads is less than this number. Additional processes/threads
+    might be created if <directive module="mpm_common">ListenCoresBucketsRatio</directive> 
+    is enabled.</p>
 
     <p>For <module>mpm_netware</module> the default is
     <code>MaxSpareThreads 100</code>. Since this MPM runs a
@@ -440,9 +480,10 @@ will handle during its life</description>
         <li><module>mpm_netware</module> wants the value to be greater than
         <directive module="mpm_common">MinSpareThreads</directive>.</li>
 
-        <li>For <module>worker</module>, the value must be greater or equal
-        to the sum of <directive module="mpm_common">MinSpareThreads</directive>
-        and <directive module="mpm_common">ThreadsPerChild</directive>.</li>
+        <li>For <module>worker</module> and <module>event</module>, the value
+        must be greater or equal to the sum of <directive module="mpm_common">
+        MinSpareThreads</directive> and <directive module="mpm_common">
+	ThreadsPerChild</directive>.</li>
       </ul>
     </note>
 </usage>
@@ -458,19 +499,21 @@ spikes</description>
 <syntax>MinSpareThreads <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpmt_os2</module><module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 
 <usage>
     <p>Minimum number of idle threads to handle request spikes.
-    Different MPMs deal with this directive
-    differently.</p>
+    Different MPMs deal with this directive differently.</p>
 
-    <p><module>worker</module> uses a default of <code>MinSpareThreads
-    75</code> and deals with idle threads on a server-wide basis. If
-    there aren't enough idle threads in the server then child
+    <p><module>worker</module> and <module>event</module> use a default of
+    <code>MinSpareThreads 75</code> and deal with idle threads on a server-wide
+    basis. If there aren't enough idle threads in the server then child
     processes are created until the number of idle threads is greater
-    than <var>number</var>.</p>
+    than <var>number</var>. Additional processes/threads
+    might be created if <directive module="mpm_common">ListenCoresBucketsRatio</directive> 
+    is enabled.</p>
 
     <p><module>mpm_netware</module> uses a default of
     <code>MinSpareThreads 10</code> and, since it is a single-process
@@ -492,8 +535,9 @@ the child processes</description>
 <syntax>ScoreBoardFile <var>file-path</var></syntax>
 <default>ScoreBoardFile apache_runtime_status</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_winnt</module>
-<module>prefork</module><module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+</modulelist>
 
 <usage>
     <p>Apache HTTP Server uses a scoreboard to communicate between its parent
@@ -532,9 +576,10 @@ Apache HTTP Server</a></seealso>
 <syntax>ReceiveBufferSize <var>bytes</var></syntax>
 <default>ReceiveBufferSize 0</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpm_winnt</module><module>mpmt_os2</module><module>prefork</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 
 <usage>
     <p>The server will set the TCP receive buffer size to the number of
@@ -551,9 +596,10 @@ Apache HTTP Server</a></seealso>
 <syntax>SendBufferSize <var>bytes</var></syntax>
 <default>SendBufferSize 0</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpm_winnt</module><module>mpmt_os2</module><module>prefork</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpm_winnt</module>
+<module>mpm_netware</module><module>mpmt_os2</module>
+</modulelist>
 
 <usage>
     <p>Sets the server's TCP send buffer size to the number of bytes
@@ -581,22 +627,25 @@ Apache HTTP Server</a></seealso>
 <syntax>ServerLimit <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>prefork</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module>
+</modulelist>
 
 <usage>
     <p>For the <module>prefork</module> MPM, this directive sets the
     maximum configured value for <directive
     module="mpm_common">MaxRequestWorkers</directive> for the lifetime of the
-    Apache httpd process.  For the <module>worker</module> MPM, this directive
-    in combination with <directive
+    Apache httpd process. For the <module>worker</module> and <module>event
+    </module> MPMs, this directive in combination with <directive
     module="mpm_common">ThreadLimit</directive> sets
     the maximum configured value for <directive
     module="mpm_common">MaxRequestWorkers</directive> for the lifetime of the
-    Apache httpd process.  Any attempts to change this directive during a
-    restart will be ignored, but <directive
-    module="mpm_common">MaxRequestWorkers</directive> can be modified during
-    a restart.</p>
+    Apache httpd process. For the <module>event</module> MPM, this directive
+    also defines how many old server processes may keep running and finish processing
+    open connections.
+    Any attempts to change this directive during a restart will be ignored, but
+    <directive module="mpm_common">MaxRequestWorkers</directive> can be modified
+    during a restart.</p>
 
     <p>Special care must be taken when using this directive.  If
     <directive>ServerLimit</directive> is set to a value much higher
@@ -613,14 +662,21 @@ Apache HTTP Server</a></seealso>
     might want to set <directive
     module="mpm_common">MaxRequestWorkers</directive> to.</p>
 
-    <p>With <module>worker</module>, use this directive only
-    if your <directive module="mpm_common">MaxRequestWorkers</directive> and
-    <directive module="mpm_common">ThreadsPerChild</directive>
+    <p>With <module>worker</module>, use this directive only if your
+    <directive module="mpm_common">MaxRequestWorkers
+    </directive> and <directive module="mpm_common">ThreadsPerChild</directive>
     settings require more than 16 server processes (default). Do not set
     the value of this directive any higher than the number of server
     processes required by what you may want for <directive
     module="mpm_common">MaxRequestWorkers </directive> and <directive
     module="mpm_common">ThreadsPerChild</directive>.</p>
+
+    <p>With <module>event</module>, increase this directive if the process
+    number defined by your <directive
+    module="mpm_common">MaxRequestWorkers</directive> and <directive
+    module="mpm_common">ThreadsPerChild</directive> settings, plus the
+    number of gracefully shutting down processes, is more than 16 server
+    processes (default).</p>
 
     <note><title>Note</title>
       <p>There is a hard limit of <code>ServerLimit 20000</code> compiled
@@ -639,8 +695,8 @@ Apache HTTP Server</a></seealso>
 <syntax>StartServers <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpmt_os2</module>
-<module>prefork</module><module>worker</module>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module><module>mpmt_os2</module>
 </modulelist>
 
 <usage>
@@ -653,10 +709,10 @@ Apache HTTP Server</a></seealso>
     module="prefork">MaxSpareServers</directive>)
     there is usually little reason to adjust this parameter.</p>
 
-    <p>The default value differs from MPM to MPM. <module>worker</module>
-    defaults to <code>StartServers 3</code>; <module>prefork</module>
-    defaults to <code>5</code>; <module>mpmt_os2</module> defaults to
-    <code>2</code>.</p>
+    <p>The default value differs from MPM to MPM. <module>worker</module> and
+    <module>event</module> default to <code>StartServers 3</code>; <module>
+    prefork</module> defaults to <code>5</code>; <module>mpmt_os2</module>
+    defaults to <code>2</code>.</p>
 </usage>
 </directivesynopsis>
 
@@ -693,8 +749,9 @@ per child process</description>
 <syntax>ThreadLimit <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_winnt</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>mpm_winnt</module>
+</modulelist>
 
 <usage>
     <p>This directive sets the maximum configured value for <directive
@@ -738,8 +795,9 @@ per child process</description>
 <syntax>ThreadsPerChild <var>number</var></syntax>
 <default>See usage for details</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_winnt</module>
-<module>worker</module></modulelist>
+<modulelist><module>event</module><module>worker</module>
+<module>mpm_winnt</module>
+</modulelist>
 
 <usage>
     <p>This directive sets the number of threads created by each
@@ -764,9 +822,9 @@ client connections</description>
 <syntax>ThreadStackSize <var>size</var></syntax>
 <default>65536 on NetWare; varies on other operating systems</default>
 <contextlist><context>server config</context></contextlist>
-<modulelist><module>event</module><module>mpm_netware</module>
-<module>mpmt_os2</module><module>mpm_winnt</module><module>worker</module>
-<module>event</module>
+<modulelist><module>event</module><module>worker</module>
+<module>mpm_winnt</module><module>mpm_netware</module>
+<module>mpmt_os2</module>
 </modulelist>
 
 <usage>
@@ -812,6 +870,37 @@ client connections</description>
     unless a high number of threads per child process is needed. On some
     platforms (including Linux), a setting of 128000 is already too low and
     causes crashes with some common modules.</note>
+</usage>
+</directivesynopsis>
+
+<directivesynopsis>
+<name>AcceptErrorsNonFatal</name>
+<description>Treat some errors accepting a new connection as non-fatal
+to the httpd process.</description>
+<syntax>AcceptErrorsNonFatal ON</syntax>
+<default>OFF (ECONNREFUSED, ECONNABORTED, ECONNRESET cause the process to 
+         exit)</default>
+<contextlist><context>server config</context></contextlist>
+<modulelist><module>event</module><module>worker</module>
+<module>prefork</module>
+</modulelist>
+<compatibility>2.5.1 and later</compatibility>
+
+<usage>
+    <p>The <directive>AcceptErrorsNonFatal</directive> alters the servers
+    behavior under some rare errors that may occur while accepting a new 
+    client connection.  By default, the child process handling a request
+    will gracefully exit when nearly any socket error occurs during the
+    accept() system call.  This is to ensure a potentially unhealthy
+    child process does not try to take on more new connections.</p>
+
+    <p>With <directive>AcceptErrorsNonFatal</directive> set to "ON",
+    the process will <em>not</em> begin to exit if the accept() error is
+    ECONNREFUSED, ECONNABORTED, or ECONNRESET.</p>
+ 
+    <note>Some third-party firwewall software components may inject errors
+    into accept() processing, using return codes not specified by the 
+    operating system</note>
 </usage>
 </directivesynopsis>
 

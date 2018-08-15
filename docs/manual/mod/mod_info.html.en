@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
@@ -70,10 +70,12 @@ configuration</td></tr>
 <ul id="toc">
 <li><img alt="" src="../images/down.gif" /> <a href="#addmoduleinfo">AddModuleInfo</a></li>
 </ul>
-<ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_info">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_info">Report a bug</a></li></ul><h3>See also</h3>
+<ul class="seealso">
+<li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Security Issues</a></h2>
+<h2><a name="security" id="security">Security Issues</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
     <p>Once <code class="module"><a href="../mod/mod_info.html">mod_info</a></code> is loaded into the server, its
     handler capability is available in <em>all</em> configuration
     files, including per-directory files (<em>e.g.</em>,
@@ -91,16 +93,16 @@ configuration</td></tr>
 
     <div class="example"><h3>Access control</h3><pre class="prettyprint lang-config">&lt;Location "/server-info"&gt;
     SetHandler server-info
-    Order allow,deny
     # Allow access from server itself
-    Allow from 127.0.0.1
+    Require ip 127.0.0.1
+
     # Additionally, allow access from local workstation
-    Allow from 192.168.1.17
+    Require ip 192.168.1.17
 &lt;/Location&gt;</pre>
 </div>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="queries" id="queries">Selecting the information shown</a></h2>
+<h2><a name="queries" id="queries">Selecting the information shown</a><a title="Permanent link" href="#queries" class="permalink">&para;</a></h2>
     <p>By default, the server information includes a list of
     all enabled modules, and for each module, a description of
     the directives understood by that module, the hooks implemented
@@ -123,17 +125,23 @@ configuration</td></tr>
             <dd>Only a simple list of enabled modules</dd>
         <dt><code>?server</code></dt>
             <dd>Only the basic server information</dd>
+        <dt><code>?providers</code></dt>
+            <dd>List the providers that are available on your server</dd>
     </dl>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="startup" id="startup">Dumping the configuration on startup</a></h2>
+<h2><a name="startup" id="startup">Dumping the configuration on startup</a><a title="Permanent link" href="#startup" class="permalink">&para;</a></h2>
     <p>If the config define <code>-DDUMP_CONFIG</code> is set,
     <code class="module"><a href="../mod/mod_info.html">mod_info</a></code> will dump the pre-parsed configuration to
-    <code>stdout</code> during server startup. Pre-parsed means that
-    directives like
+    <code>stdout</code> during server startup.</p>
+
+    <pre class="prettyprint lang-sh">httpd -DDUMP_CONFIG -k start</pre>
+
+    
+    <p>Pre-parsed means that directives like
     <code class="directive"><a href="../mod/core.html#ifdefine">&lt;IfDefine&gt;</a></code> and
     <code class="directive"><a href="../mod/core.html#ifmodule">&lt;IfModule&gt;</a></code> are
-    evaluated and environment varialbles are replaced. However it does
+    evaluated and environment variables are replaced. However it does
     not represent the final state of the configuration. In particular,
     it does not represent the merging or overriding that may happen
     for repeated directives.</p>
@@ -141,7 +149,7 @@ configuration</td></tr>
     <p>This is roughly equivalent to the <code>?config</code> query.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="limitations" id="limitations">Known Limitations</a></h2>
+<h2><a name="limitations" id="limitations">Known Limitations</a><a title="Permanent link" href="#limitations" class="permalink">&para;</a></h2>
     <p><code class="module"><a href="../mod/mod_info.html">mod_info</a></code> provides its information by reading the
     parsed configuration, rather than reading the original configuration
     file. There are a few limitations as a result of the way the parsed
@@ -171,7 +179,7 @@ configuration</td></tr>
     </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="AddModuleInfo" id="AddModuleInfo">AddModuleInfo</a> <a name="addmoduleinfo" id="addmoduleinfo">Directive</a></h2>
+<div class="directive-section"><h2><a name="AddModuleInfo" id="AddModuleInfo">AddModuleInfo</a> <a name="addmoduleinfo" id="addmoduleinfo">Directive</a><a title="Permanent link" href="#addmoduleinfo" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Adds additional information to the module
 information displayed by the server-info handler</td></tr>
@@ -214,7 +222,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_info.html'
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

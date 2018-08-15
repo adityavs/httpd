@@ -80,31 +80,42 @@ AcceptFilter https data
        requests.  Any value besides <code>none</code> will enable
        <code>TCP_DEFER_ACCEPT</code> on that listener. For more details
        see the Linux
-       <a href="http://homepages.cwi.nl/~aeb/linux/man2html/man7/tcp.7.html">
+       <a href="http://man7.org/linux/man-pages/man7/tcp.7.html">
        tcp(7)</a> man page.</p>
 
     <p>The default values on Windows are:</p>
     <highlight language="config">
-AcceptFilter http data
-AcceptFilter https data
+AcceptFilter http connect
+AcceptFilter https connect
     </highlight>
 
     <p>Window's mpm_winnt interprets the AcceptFilter to toggle the AcceptEx()
-       API, and does not support http protocol buffering.  There are two values
-       which utilize the Windows AcceptEx() API and will recycle network
-       sockets between connections.  <code>data</code> waits until data has
-       been transmitted as documented above, and the initial data buffer and
-       network endpoint addresses are all retrieved from the single AcceptEx()
-       invocation.  <code>connect</code> will use the AcceptEx() API, also
-       retrieve the network endpoint addresses, but like <code>none</code>
-       the <code>connect</code> option does not wait for the initial data
-       transmission.</p>
+       API, and does not support http protocol buffering. <code>connect</code>
+       will use the AcceptEx() API, also retrieve the network endpoint
+       addresses, but like <code>none</code> the <code>connect</code> option
+       does not wait for the initial data transmission.</p>
 
     <p>On Windows, <code>none</code> uses accept() rather than AcceptEx()
        and will not recycle sockets between connections.  This is useful for
        network adapters with broken driver support, as well as some virtual
        network providers such as vpn drivers, or spam, virus or spyware
        filters.</p>
+
+    <note type="warning">
+      <title>The <code>data</code> AcceptFilter (Windows)</title>
+
+      <p>For versions 2.4.23 and prior, the Windows <code>data</code> accept
+         filter waited until data had been transmitted and the initial data
+         buffer and network endpoint addresses had been retrieved from the
+         single AcceptEx() invocation. This implementation was subject to a
+         denial of service attack and has been disabled.</p>
+
+      <p>Current releases of httpd default to the <code>connect</code> filter
+         on Windows, and will fall back to <code>connect</code> if
+         <code>data</code> is specified. Users of prior releases are encouraged
+         to add an explicit setting of <code>connect</code> for their
+         AcceptFilter, as shown above.</p>
+    </note>
 
 </usage>
 <seealso><directive module="core">Protocol</directive></seealso>
@@ -334,10 +345,12 @@ NoDecode option available in 2.3.12 and later.</compatibility>
     <code>.htaccess</code> files.</p>
 
     <p>The <var>directive-type</var> can be one of the following
-    groupings of directives.</p>
+    groupings of directives. (See the <a href="overrides.html">override class
+    index</a> for an up-to-date listing of which directives are enabled by each
+    <var>directive-type</var>.)</p>
 
     <dl>
-      <dt>AuthConfig</dt>
+      <dt><a href="overrides.html#override-authconfig">AuthConfig</a></dt>
 
       <dd>
 
@@ -350,7 +363,7 @@ NoDecode option available in 2.3.12 and later.</compatibility>
       module="mod_authn_file">AuthUserFile</directive>, <directive
       module="mod_authz_core">Require</directive>, <em>etc.</em>).</dd>
 
-      <dt>FileInfo</dt>
+      <dt><a href="overrides.html#override-fileinfo">FileInfo</a></dt>
 
       <dd>
       Allow use of the directives controlling document types
@@ -387,7 +400,7 @@ NoDecode option available in 2.3.12 and later.</compatibility>
       <module>mod_actions</module>.
       </dd>
 
-      <dt>Indexes</dt>
+      <dt><a href="overrides.html#override-indexes">Indexes</a></dt>
 
       <dd>
       Allow use of the directives controlling directory indexing
@@ -406,7 +419,7 @@ NoDecode option available in 2.3.12 and later.</compatibility>
       module="mod_autoindex">ReadmeName</directive>,
       <em>etc.</em>).</dd>
 
-      <dt>Limit</dt>
+      <dt><a href="overrides.html#override-limit">Limit</a></dt>
 
       <dd>
       Allow use of the directives controlling host access (<directive
@@ -420,7 +433,8 @@ NoDecode option available in 2.3.12 and later.</compatibility>
       <dt>Nonfatal=[Override|Unknown|All]</dt>
 
       <dd>
-      Allow use of AllowOverride option to treat syntax errors in
+      Allow use of AllowOverride option to treat invalid (unrecognized
+      or disallowed) directives in
       .htaccess as nonfatal. Instead of causing an Internal Server
       Error, disallowed or unrecognised directives will be ignored
       and a warning logged:
@@ -433,7 +447,7 @@ NoDecode option available in 2.3.12 and later.</compatibility>
           <li><strong>Nonfatal=All</strong> treats both the above as nonfatal.</li>
       </ul>
       <p>Note that a syntax error in a valid directive will still cause
-      an internal server error.</p>
+      an Internal Server Error.</p>
       <note type="warning"><title>Security</title>
           Nonfatal errors may have security implications for .htaccess users.
           For example, if AllowOverride disallows AuthConfig, users'
@@ -441,7 +455,7 @@ NoDecode option available in 2.3.12 and later.</compatibility>
       </note>
       </dd>
 
-      <dt>Options[=<var>Option</var>,...]</dt>
+      <dt><a href="overrides.html#override-options">Options</a>[=<var>Option</var>,...]</dt>
 
       <dd>
       Allow use of the directives controlling specific directory
@@ -488,6 +502,7 @@ AllowOverride AuthConfig Indexes
 <seealso><directive module="core">AllowOverrideList</directive></seealso>
 <seealso><a href="../configuring.html">Configuration Files</a></seealso>
 <seealso><a href="../howto/htaccess.html">.htaccess Files</a></seealso>
+<seealso><a href="overrides.html">Override Class Index for .htaccess</a></seealso>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -529,7 +544,7 @@ AllowOverrideList Redirect RedirectMatch
 
     <p>In the example above, only the <code>Redirect</code> and
     <code>RedirectMatch</code> directives are allowed. All others will
-    cause an internal server error.</p>
+    cause an Internal Server Error.</p>
 
     <p>Example:</p>
 
@@ -538,17 +553,37 @@ AllowOverride AuthConfig
 AllowOverrideList CookieTracking CookieName
     </highlight>
 
-    <p>In the example above, <directive module="core">AllowOverride
-    </directive> grants permission to the <code>AuthConfig</code>
+    <p>In the example above, <directive module="core">AllowOverride</directive> 
+    grants permission to the <code>AuthConfig</code>
     directive grouping and <directive>AllowOverrideList</directive> grants
     permission to only two directives from the <code>FileInfo</code> directive
-    grouping. All others will cause an internal server error.</p>
+    grouping. All others will cause an Internal Server Error.</p>
 </usage>
 
 <seealso><directive module="core">AccessFileName</directive></seealso>
 <seealso><directive module="core">AllowOverride</directive></seealso>
 <seealso><a href="../configuring.html">Configuration Files</a></seealso>
 <seealso><a href="../howto/htaccess.html">.htaccess Files</a></seealso>
+</directivesynopsis>
+
+<directivesynopsis>
+    <name>AsyncFilter</name>
+    <description>Set the minimum filter type eligible for asynchronous handling</description>
+    <syntax>AsyncFilter request|connection|network</syntax>
+    <default>AsyncFilter request</default>
+    <contextlist><context>server config</context><context>virtual host</context></contextlist>
+    <compatibility>Only available from Apache 2.5.0 and later.</compatibility>
+
+    <usage>
+        <p>This directive controls the minimum filter levels that are eligible
+        for asynchronous handling. This may be necessary to support legacy external
+        filters that did not handle meta buckets correctly.</p>
+
+        <p>If set to "network", asynchronous handling will be limited to the network
+        filter only. If set to "connection", all connection and network filters
+        will be eligible for asynchronous handling, including <module>mod_ssl</module>.
+        If set to "request", all filters will be eligible for asynchronous handling.</p>
+    </usage>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -604,6 +639,32 @@ variables</description>
     and <module>mod_ext_filter</module>.  Third-party modules that don't
     use <code>ap_add_common_vars()</code> may choose to respect the setting
     as well.</p>
+</usage>
+</directivesynopsis>
+
+<directivesynopsis>
+<name>CGIVar</name>
+<description>Controls how some CGI variables are set</description>
+<syntax>CGIVar <var>variable</var> <var>rule</var></syntax>
+<contextlist><context>directory</context><context>.htaccess</context>
+</contextlist>
+<override>FileInfo</override>
+<compatibility>Available in Apache HTTP Server 2.4.21 and later</compatibility>
+
+<usage>
+  <p>This directive controls how some CGI variables are set.</p>
+
+  <p><strong>REQUEST_URI</strong> rules:</p>
+  <dl>
+    <dt><code>original-uri</code> (default)</dt>
+    <dd>The value is taken from the original request line, and will not
+    reflect internal redirects or subrequests which change the requested
+    resource.</dd>
+    <dt><code>current-uri</code></dt>
+    <dd>The value reflects the resource currently being processed,
+    which may be different than the original request from the client
+    due to internal redirects or subrequests.</dd>
+  </dl>
 </usage>
 </directivesynopsis>
 
@@ -718,6 +779,8 @@ DefaultType None
     send the response without a Content-Type header field and the
     recipient may attempt to guess the media type.</p>
 </usage>
+<seealso><directive module="core">UnDefine</directive></seealso>
+<seealso><directive module="core">IfDefine</directive></seealso>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -728,12 +791,12 @@ DefaultType None
 </contextlist>
 
 <usage>
-    <p>In its one parameter form, <directive>Define</directive> is equivalent
-    to passing the <code>-D</code> argument to <program>httpd</program>. It
-    can be used to toggle the use of
-    <directive module="core" type="section">IfDefine</directive> sections
-    without needing to alter <code>-D</code> arguments in any startup
-    scripts.</p>
+    <p>In its one parameter form, <directive>Define</directive> is
+    equivalent to passing the <code>-D</code> argument to
+    <program>httpd</program>. It can be used to toggle the use of
+    <directive module="core" type="section">IfDefine</directive>
+    sections without needing to alter <code>-D</code> arguments in any
+    startup scripts.</p>
 
     <p>In addition to that, if the second parameter is given, a config variable
     is set to this value. The variable can be used in the configuration using
@@ -755,9 +818,11 @@ DocumentRoot "/var/www/${servername}/htdocs"
     <p>Variable names may not contain colon ":" characters, to avoid clashes
     with <directive module="mod_rewrite">RewriteMap</directive>'s syntax.</p>
 
-    <p>While this directive is supported in virtual host context,
-       the changes it makes are visible to any later configuration
-       directives, beyond any enclosing virtual host</p>
+    <note><title>Virtual Host scope and pitfalls</title>
+      <p>While this directive is supported in virtual host context,
+         the changes it makes are visible to any later configuration
+         directives, beyond any enclosing virtual host.</p>
+    </note>
 </usage>
 </directivesynopsis>
 
@@ -813,7 +878,7 @@ named file-system directory, sub-directories, and their contents.</description>
 &lt;Directory ~ "^/www/[0-9]{3}"&gt;
 
 &lt;/Directory&gt;
-</highlight>
+    </highlight>
 
     <p>would match directories in <code>/www/</code> that consisted of
     three numbers.</p>
@@ -919,12 +984,12 @@ the contents of file-system directories matching a regular expression.</descript
 &lt;DirectoryMatch "^/www/(.+/)?[0-9]{3}/"&gt;
     # ...
 &lt;/DirectoryMatch&gt;
-</highlight>
+    </highlight>
 
     <p>matches directories in <code>/www/</code> (or any subdirectory thereof)
     that consist of three numbers.</p>
 
-   <note><title>Compatability</title>
+   <note><title>Compatibility</title>
       Prior to 2.3.9, this directive implicitly applied to sub-directories
       (like <directive module="core" type="section">Directory</directive>) and
       could not match the end of line symbol ($).  In 2.3.9 and later,
@@ -945,11 +1010,11 @@ the contents of file-system directories matching a regular expression.</descript
     <module>mod_rewrite</module>. In order to prevent confusion, numbered
     (unnamed) backreferences are ignored. Use named groups instead.</p>
 
-<highlight language="config">
+    <highlight language="config">
 &lt;DirectoryMatch "^/var/www/combined/(?&lt;sitename&gt;[^/]+)"&gt;
     Require ldap-group cn=%{env:MATCH_SITENAME},ou=combined,o=Example
 &lt;/DirectoryMatch&gt;
-</highlight>
+    </highlight>
 </usage>
 <seealso><directive type="section" module="core">Directory</directive> for
 a description of how regular expressions are mixed in with normal
@@ -965,7 +1030,7 @@ sections are combined when a request is received</seealso>
 <description>Directory that forms the main document tree visible
 from the web</description>
 <syntax>DocumentRoot <var>directory-path</var></syntax>
-<default>DocumentRoot /usr/local/apache/htdocs</default>
+<default>DocumentRoot "/usr/local/apache/htdocs"</default>
 <contextlist><context>server config</context><context>virtual host</context>
 </contextlist>
 
@@ -1004,6 +1069,7 @@ satisfied by a request at runtime</description>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
 <override>All</override>
+<compatibility>Nested conditions are evaluated in 2.4.26 and later</compatibility>
 
 <usage>
     <p>The <directive type="section">Else</directive> applies the enclosed
@@ -1050,6 +1116,7 @@ satisfied</description>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
 <override>All</override>
+<compatibility>Nested conditions are evaluated in 2.4.26 and later</compatibility>
 
 <usage>
     <p>The <directive type="section">ElseIf</directive> applies the enclosed
@@ -1203,12 +1270,139 @@ EnableSendfile On
 </directivesynopsis>
 
 <directivesynopsis>
+<name>HttpProtocolOptions</name>
+<description>Modify restrictions on HTTP Request Messages</description>
+<syntax>HttpProtocolOptions [Strict|Unsafe] [RegisteredMethods|LenientMethods]
+ [Allow0.9|Require1.0]</syntax>
+<default>HttpProtocolOptions Strict LenientMethods Allow0.9</default>
+<contextlist><context>server config</context>
+<context>virtual host</context></contextlist>
+<compatibility>2.2.32 or 2.4.24 and later</compatibility>
+
+<usage>
+    <p>This directive changes the rules applied to the HTTP Request Line
+    (<a href="https://tools.ietf.org/html/rfc7230#section-3.1.1"
+      >RFC 7230 &sect;3.1.1</a>) and the HTTP Request Header Fields
+    (<a href="https://tools.ietf.org/html/rfc7230#section-3.2"
+      >RFC 7230 &sect;3.2</a>), which are now applied by default or using
+    the <code>Strict</code> option. Due to legacy modules, applications or
+    custom user-agents which must be deprecated the <code>Unsafe</code>
+    option has been added to revert to the legacy behaviors.</p>
+
+    <p>These rules are applied prior to request processing,
+    so must be configured at the global or default (first) matching
+    virtual host section, by IP/port interface (and not by name)
+    to be honored.</p>
+
+    <p>The directive accepts three parameters from the following list
+       of choices, applying the default to the ones not specified:</p>
+
+    <dl>
+    <dt>Strict|Unsafe</dt>
+    <dd>
+      <p>Prior to the introduction of this directive, the Apache HTTP Server
+      request message parsers were tolerant of a number of forms of input
+      which did not conform to the protocol.
+      <a href="https://tools.ietf.org/html/rfc7230#section-9.4"
+        >RFC 7230 &sect;9.4 Request Splitting</a> and
+      <a href="https://tools.ietf.org/html/rfc7230#section-9.5"
+        >&sect;9.5 Response Smuggling</a> call out only two of the potential
+      risks of accepting non-conformant request messages, while
+      <a href="https://tools.ietf.org/html/rfc7230#section-3.5"
+           >RFC 7230 &sect;3.5</a> "Message Parsing Robustness" identify the
+      risks of accepting obscure whitespace and request message formatting. 
+      As of the introduction of this directive, all grammar rules of the
+      specification are enforced in the default <code>Strict</code> operating
+      mode, and the strict whitespace suggested by section 3.5 is enforced
+      and cannot be relaxed.</p>
+
+      <note type="warning"><title>Security risks of Unsafe</title>
+        <p>Users are strongly cautioned against toggling the <code>Unsafe</code>
+        mode of operation, particularly on outward-facing, publicly accessible
+        server deployments.  If an interface is required for faulty monitoring
+        or other custom service consumers running on an intranet, users should
+        toggle the Unsafe option only on a specific virtual host configured
+        to service their internal private network.</p>
+      </note>
+
+      <example>
+        <title>Example of a request leading to HTTP 400 with Strict mode</title>
+        # Missing CRLF<br />
+        GET / HTTP/1.0\n\n
+      </example>
+      <note type="warning"><title>Command line tools and CRLF</title>
+        <p>Some tools need to be forced to use CRLF, otherwise httpd will return
+        a HTTP 400 response like described in the above use case. For example,
+        the <strong>OpenSSL s_client needs the -crlf parameter to work
+        properly</strong>.</p>
+        <p>The <directive module="mod_dumpio">DumpIOInput</directive> directive
+        can help while reviewing the HTTP request to identify issues like the
+        absence of CRLF.</p>
+      </note>
+    </dd>
+    <dt>RegisteredMethods|LenientMethods</dt>
+    <dd>
+      <p><a href="https://tools.ietf.org/html/rfc7231#section-4.1"
+           >RFC 7231 &sect;4.1</a> "Request Methods" "Overview" requires that
+      origin servers shall respond with a HTTP 501 status code when an
+      unsupported method is encountered in the request line.
+      This already happens when the <code>LenientMethods</code> option is used,
+      but administrators may wish to toggle the <code>RegisteredMethods</code>
+      option and register any non-standard methods using the
+      <directive module="core">RegisterHttpMethod</directive>
+      directive, particularly if the <code>Unsafe</code>
+      option has been toggled.</p>
+
+      <note type="warning"><title>Forward Proxy compatibility</title>
+        <p>The <code>RegisteredMethods</code> option should <strong>not</strong>
+        be toggled for forward proxy hosts, as the methods supported by the
+        origin servers are unknown to the proxy server.</p>
+      </note>
+
+      <example>
+        <title>Example of a request leading to HTTP 501 with LenientMethods mode</title>
+        # Unknown HTTP method<br />
+        WOW / HTTP/1.0\r\n\r\n<br /><br />
+        # Lowercase HTTP method<br />
+        get / HTTP/1.0\r\n\r\n<br />
+      </example>
+      </dd>
+      <dt>Allow0.9|Require1.0</dt>
+      <dd>
+      <p><a href="https://tools.ietf.org/html/rfc2616#section-19.6"
+           >RFC 2616 &sect;19.6</a> "Compatibility With Previous Versions" had
+      encouraged HTTP servers to support legacy HTTP/0.9 requests. RFC 7230
+      supersedes this with "The expectation to support HTTP/0.9 requests has
+      been removed" and offers additional comments in 
+      <a href="https://tools.ietf.org/html/rfc7230#appendix-A"
+        >RFC 7230 Appendix A</a>. The <code>Require1.0</code> option allows
+      the user to remove support of the default <code>Allow0.9</code> option's
+      behavior.</p>
+
+      <example>
+        <title>Example of a request leading to HTTP 400 with Require1.0 mode</title>
+        # Unsupported HTTP version<br />
+        GET /\r\n\r\n
+      </example>
+    </dd>
+    </dl>
+    <p>Reviewing the messages logged to the
+    <directive module="core">ErrorLog</directive>, configured with
+    <directive module="core">LogLevel</directive> <code>debug</code> level,
+    can help identify such faulty requests along with their origin.
+    Users should pay particular attention to the 400 responses in the access
+    log for invalid requests which were unexpectedly rejected.</p>
+</usage>
+</directivesynopsis>
+
+<directivesynopsis>
 <name>Error</name>
 <description>Abort configuration parsing with a custom error message</description>
 <syntax>Error <var>message</var></syntax>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
+<override>All</override>
 <compatibility>2.3.9 and later</compatibility>
 
 <usage>
@@ -1283,12 +1477,12 @@ in case of an error</description>
     before any expression is parsed. Examples:</p>
 
     <highlight language="config">
-ErrorDocument 500 http://foo.example.com/cgi-bin/tester
-ErrorDocument 404 /cgi-bin/bad_urls.pl
+ErrorDocument 500 http://example.com/cgi-bin/server-error.cgi
+ErrorDocument 404 /errors/bad_urls.php
 ErrorDocument 401 /subscription_info.html
-ErrorDocument 403 "Sorry can't allow you access today"
+ErrorDocument 403 "Sorry, can't allow you access today"
 ErrorDocument 403 Forbidden!
-ErrorDocument 403 /cgi-bin/forbidden.pl?referrer=%{escape:%{HTTP_REFERER}}
+ErrorDocument 403 /errors/forbidden.py?referrer=%{escape:%{HTTP_REFERER}}
     </highlight>
 
     <p>Additionally, the special value <code>default</code> can be used
@@ -1352,7 +1546,7 @@ ErrorDocument 404 /cgi-bin/bad_urls.pl
 <directivesynopsis>
 <name>ErrorLog</name>
 <description>Location where the server will log errors</description>
-<syntax> ErrorLog <var>file-path</var>|syslog[:<var>facility</var>]</syntax>
+<syntax> ErrorLog <var>file-path</var>|syslog[:[<var>facility</var>][:<var>tag</var>]]</syntax>
 <default>ErrorLog logs/error_log (Unix) ErrorLog logs/error.log (Windows and OS/2)</default>
 <contextlist><context>server config</context><context>virtual host</context>
 </contextlist>
@@ -1385,10 +1579,15 @@ ErrorLog "|/usr/local/bin/httpd_errors"
     syntax where <var>facility</var> can be one of the names usually documented in
     syslog(1).  The facility is effectively global, and if it is changed
     in individual virtual hosts, the final facility specified affects the
-    entire server.</p>
+    entire server. Same rules apply for the syslog tag, which by default
+    uses the Apache binary name, <code>httpd</code> in most cases. You can
+    also override this by using the <code>syslog::<var>tag</var></code>
+    syntax.</p>
 
     <highlight language="config">
 ErrorLog syslog:user
+ErrorLog syslog:user:httpd.srv1
+ErrorLog syslog::httpd.srv2
     </highlight>
 
     <p>Additional modules can provide their own ErrorLog providers. The syntax
@@ -1596,7 +1795,7 @@ ErrorLogFormat "[%{u}t] [%-m:%l] [pid %P:tid %T] %7F: %E: [client\ %a] %M%&nbsp;
 
     <p>This would result in error messages such as:</p>
 
-	<example>
+    <example>
     [Thu May 12 08:28:57.652118 2011] [core:error] [pid 8777:tid 4326490112] [client ::1:58619] File does not exist: /usr/local/apache2/htdocs/favicon.ico
     </example>
 
@@ -1767,7 +1966,7 @@ filenames</description>
 &lt;Files "?at.*"&gt;
     # This would apply to cat.html, bat.html, hat.php and so on.
 &lt;/Files&gt;
-</highlight>
+    </highlight>
     <p><glossary ref="regex">Regular expressions</glossary>
     can also be used, with the addition of the
     <code>~</code> character. For example:</p>
@@ -1776,7 +1975,7 @@ filenames</description>
 &lt;Files ~ "\.(gif|jpe?g|png)$"&gt;
     #...
 &lt;/Files&gt;
-</highlight>
+    </highlight>
 
     <p>would match most common Internet graphics formats. <directive
     module="core" type="section">FilesMatch</directive> is preferred,
@@ -1812,11 +2011,11 @@ filenames</description>
     does. However, it accepts a <glossary ref="regex">regular
     expression</glossary>. For example:</p>
 
-<highlight language="config">
+    <highlight language="config">
 &lt;FilesMatch ".+\.(gif|jpe?g|png)$"&gt;
     # ...
 &lt;/FilesMatch&gt;
-</highlight>
+    </highlight>
 
     <p>would match most common Internet graphics formats.</p>
 
@@ -1831,11 +2030,11 @@ filenames</description>
     <module>mod_rewrite</module>. In order to prevent confusion, numbered
     (unnamed) backreferences are ignored. Use named groups instead.</p>
 
-<highlight language="config">
+    <highlight language="config">
 &lt;FilesMatch "^(?&lt;sitename&gt;[^/]+)"&gt;
     require ldap-group cn=%{env:MATCH_SITENAME},ou=combined,o=Example
 &lt;/FilesMatch&gt;
-</highlight>
+    </highlight>
 </usage>
 
 <seealso><a href="../sections.html">How &lt;Directory&gt;, &lt;Location&gt;
@@ -1992,6 +2191,7 @@ satisfied by a request at runtime</description>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
 <override>All</override>
+<compatibility>Nested conditions are evaluated in 2.4.26 and later</compatibility>
 
 <usage>
     <p>The <directive type="section">If</directive> directive
@@ -2107,6 +2307,51 @@ if a test is true at startup</description>
 </directivesynopsis>
 
 <directivesynopsis type="section">
+<name>IfFile</name>
+<description>Encloses directives that will be processed only
+if file exists at startup</description>
+<syntax>&lt;IfFile [!]<var>parameter-name</var>&gt; ...
+    &lt;/IfFile&gt;</syntax>
+<contextlist><context>server config</context><context>virtual host</context>
+<context>directory</context><context>.htaccess</context>
+</contextlist>
+<override>All</override>
+<compatibility>Available in 2.4.34 and later</compatibility>
+
+<usage>
+    <p>The <code>&lt;IfFile <var>filename</var>&gt;...&lt;/IfFile&gt;
+    </code> section is used to mark directives that are conditional on
+    the existence of a file on disk. The directives within an
+    <directive type="section">IfFile</directive> section are only
+    processed if <var>filename</var> exists. If <var>filename</var>
+    doesn't exist, everything between the start and end markers is
+    ignored. <var>filename</var> can be an absolute path or a path
+    relative to the server root.</p>
+
+    <p>The <var>filename</var> in the <directive type="section"
+    >IfFile</directive> section directive can take the same forms as the
+    <var>test</var> variable in the <directive type="section" module="core"
+    >IfDefine</directive> section, i.e. the test can be negated if the <code>
+    !</code> character is placed directly before <var>filename</var>.
+    </p>
+   
+    <p>If a relative <var>filename</var> is supplied, the check is
+    <directive module="core">ServerRoot</directive> relative. In the case where
+    this directive occurs before the <directive module="core">ServerRoot</directive>,
+    the path will be checked relative to the compiled-in server root or
+    the server root passed in on the command line via the <code>-d</code>
+    parameter.</p>
+
+    <note type="warning"><title>Warning</title>
+    In 2.4.34, it is not possible to specify a <var>filename</var>
+    with surrounding quotes. This would generate a parsing error at start-up.
+    The main impact is that filenames with spaces can't be used.
+    This behavior is fixed in 2.4.35.</note>
+
+</usage>
+</directivesynopsis>
+
+<directivesynopsis type="section">
 <name>IfModule</name>
 <description>Encloses directives that are processed conditional on the
 presence or absence of a specific module</description>
@@ -2159,6 +2404,111 @@ presence or absence of a specific module</description>
     placed in <directive type="section">IfModule</directive>
     sections.</note>
 </usage>
+</directivesynopsis>
+
+<directivesynopsis type="section">
+<name>IfDirective</name>
+<description>Encloses directives that are processed conditional on the
+presence or absence of a specific directive</description>
+<syntax>&lt;IfDirective [!]<var>directive-name</var>&gt; ...
+    &lt;/IfDirective&gt;</syntax>
+<contextlist><context>server config</context><context>virtual host</context>
+<context>directory</context><context>.htaccess</context>
+</contextlist>
+<override>All</override>
+<compatibility>Available in 2.4.34 and later</compatibility>
+
+<usage>
+    <p>The <code>&lt;IfDirective <var>test</var>&gt;...&lt;/IfDirective&gt;</code>
+    section is used to mark directives that are conditional on the presence of
+    a specific directive. The directives within an <directive type="section"
+    >IfDirective</directive> section are only processed if the <var>test</var>
+    is true. If <var>test</var> is false, everything between the start and
+    end markers is ignored.</p>
+
+    <p>The <var>test</var> in the <directive type="section"
+    >IfDirective</directive> section can be one of two forms:</p>
+
+    <ul>
+      <li><var>directive-name</var></li>
+
+      <li>!<var>directive-name</var></li>
+    </ul>
+
+    <p>In the former case, the directives between the start and end
+    markers are only processed if a directive of the given name is
+    available at the time of processing.  The second format reverses the test,
+    and only processes the directives if <var>directive-name</var> is
+    <strong>not</strong> available.</p>
+
+    <note>This section should only be used if you need to have one
+    configuration file that works across multiple versions of
+    <program>httpd</program>, regardless of whether a particular
+    directive is available. In normal operation, directives need not
+    be placed in <directive type="section">IfDirective</directive>
+    sections.</note>
+</usage>
+<seealso><directive module="core" type="section">IfSection</directive></seealso>
+</directivesynopsis>
+
+<directivesynopsis type="section">
+<name>IfSection</name>
+<description>Encloses directives that are processed conditional on the
+presence or absence of a specific section directive</description>
+<syntax>&lt;IfSection [!]<var>section-name</var>&gt; ...
+    &lt;/IfSection&gt;</syntax>
+<contextlist><context>server config</context><context>virtual host</context>
+<context>directory</context><context>.htaccess</context>
+</contextlist>
+<override>All</override>
+<compatibility>Available in 2.4.34 and later</compatibility>
+
+<usage>
+    <p>The <code>&lt;IfSection
+    <var>test</var>&gt;...&lt;/IfSection&gt;</code> section is used
+    to mark directives that are conditional on the presence of a
+    specific section directive.  A section directive is any directive
+    such as <directive type="section">VirtualHost</directive> which
+    encloses other directives, and has a directive name with a leading
+    "&lt;".</p>
+
+    <p>The directives within an <directive type="section"
+    >IfSection</directive> section are only processed if the <var>test</var>
+    is true. If <var>test</var> is false, everything between the start and
+    end markers is ignored.</p>
+
+    <p>The <var>section-name</var> must be specified without either
+    the leading "&lt;" or closing "&gt;".  The <var>test</var> in the
+    <directive type="section">IfSection</directive> section can be one
+    of two forms:</p>
+
+    <ul>
+      <li><var>section-name</var></li>
+      <li>!<var>section-name</var></li>
+    </ul>
+
+    <p>In the former case, the directives between the start and end
+    markers are only processed if a section directive of the given
+    name is available at the time of processing.  The second format
+    reverses the test, and only processes the directives if
+    <var>section-name</var> is <strong>not</strong> an available
+    section directive.</p>
+
+    <p>For example:</p>
+
+    <highlight language="config">
+&lt;IfSection VirtualHost&gt;
+   ...
+&lt;/IfSection&gt;
+    </highlight>
+    
+    <note>This section should only be used if you need to have one
+    configuration file that works across multiple versions of <program>httpd</program>,
+    regardless of whether a particular section directive is
+    available. In normal operation, directives need not be placed in
+    <directive type="section">IfSection</directive> sections.</note>
+</usage>
+<seealso><directive module="core" type="section">IfDirective</directive></seealso>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -2239,15 +2589,16 @@ the server configuration files</description>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context>
 </contextlist>
-<compatibility>Available in 2.3.6 and later</compatibility>
+<compatibility>Available in 2.3.6 and later. Not existent file paths without wildcards
+               do not cause SyntaxError after 2.4.30</compatibility>
 
 <usage>
     <p>This directive allows inclusion of other configuration files
     from within the server configuration files. It works identically to the
-    <directive module="core">Include</directive> directive, with the
-    exception that if wildcards do not match any file or directory, the
-    <directive module="core">IncludeOptional</directive> directive will be
-    silently ignored instead of causing an error.</p>
+    <directive module="core">Include</directive> directive, but it will be
+    silently ignored (instead of causing an error) if wildcards are used and
+    they do not match any file or directory or if a file path does not exist
+    on the file system.</p>
 </usage>
 
 <seealso><directive module="core">Include</directive></seealso>
@@ -2765,7 +3116,7 @@ URLs</description>
 &lt;Location ~ "/(extra|special)/data"&gt;
     #...
 &lt;/Location&gt;
-</highlight>
+    </highlight>
 
     <p>would match URLs that contained the substring <code>/extra/data</code>
     or <code>/special/data</code>. The directive <directive
@@ -2836,7 +3187,7 @@ matching URLs</description>
 &lt;LocationMatch "/(extra|special)/data"&gt;
     # ...
 &lt;/LocationMatch&gt;
-</highlight>
+    </highlight>
 
     <p>would match URLs that contained the substring <code>/extra/data</code>
     or <code>/special/data</code>.</p>
@@ -2847,7 +3198,7 @@ matching URLs</description>
     regular expression with a <code>^</code> to require this.</p>
 
     <highlight language="config">
-    &lt;LocationMatch "^/(extra|special)/data"&gt;
+&lt;LocationMatch "^/(extra|special)/data"&gt;
     </highlight>
     </note>
 
@@ -2858,11 +3209,11 @@ matching URLs</description>
     <module>mod_rewrite</module>. In order to prevent confusion, numbered
     (unnamed) backreferences are ignored. Use named groups instead.</p>
 
-<highlight language="config">
+    <highlight language="config">
 &lt;LocationMatch "^/combined/(?&lt;sitename&gt;[^/]+)"&gt;
     require ldap-group cn=%{env:MATCH_SITENAME},ou=combined,o=Example
 &lt;/LocationMatch&gt;
-</highlight>
+    </highlight>
 </usage>
 
 <seealso><a href="../sections.html">How &lt;Directory&gt;, &lt;Location&gt;
@@ -3120,8 +3471,8 @@ LogLevel info
     <p>Examples:</p>
 
     <highlight language="config">
-        LogLevelOverride 192.0.2.0/24 ssl:trace6
-        LogLevelOverride 192.0.2.7 ssl:trace8
+    LogLevelOverride 192.0.2.0/24 ssl:trace6
+    LogLevelOverride 192.0.2.7 ssl:trace8
     </highlight>
 
     <note>
@@ -3353,10 +3704,10 @@ or specified mutexes</description>
         holding a mutex that uses this implementation, the server will deadlock
         and stop responding to requests.  When this occurs, the server will
         require a manual restart to recover.</p>
-        <p>Solaris is a notable exception as it provides a mechanism which
+        <p>Solaris and Linux are notable exceptions as they provide a mechanism which
         usually allows the mutex to be recovered after a child process
         terminates abnormally while holding a mutex.</p>
-        <p>If your system implements the
+        <p>If your system is POSIX compliant or if it implements the
         <code>pthread_mutexattr_setrobust_np()</code> function, you may be able
         to use the <code>pthread</code> option safely.</p>
         </note>
@@ -3622,7 +3973,7 @@ directory</description>
     <p>Normally, if multiple <directive>Options</directive> could
     apply to a directory, then the most specific one is used and
     others are ignored; the options are not merged. (See <a
-    href="../sections.html#mergin">how sections are merged</a>.)
+    href="../sections.html#merging">how sections are merged</a>.)
     However if <em>all</em> the options on the
     <directive>Options</directive> directive are preceded by a
     <code>+</code> or <code>-</code> symbol, the options are
@@ -3714,6 +4065,7 @@ Protocol https
     <name>Protocols</name>
     <description>Protocols available for a server/virtual host</description>
     <syntax>Protocols <var>protocol</var> ...</syntax>
+    <default>Protocols http/1.1</default>
     <contextlist><context>server config</context><context>virtual host</context></contextlist>
     <compatibility>Only available from Apache 2.4.17 and later.</compatibility>
     
@@ -3722,15 +4074,16 @@ Protocol https
             server/virtual host. The list determines the allowed protocols
             a client may negotiate for this server/host.</p>
         
-        <p>You only need to set protocols if you want to limit the available
-            protocols for a server/host. By default, all supported protocols
-            are available to a client.</p>
+        <p>You need to set protocols if you want to extend the available
+            protocols for a server/host. By default, only the http/1.1 protocol
+            (which includes the compatibility with 1.0 and 0.9 clients) is
+            allowed.</p>
         
-        <p>For example, if you want to support only HTTP/1.1 for a server, even
-            though HTTP/2 is available, just specify this protocol only:</p>
+        <p>For example, if you want to support HTTP/2 for a server with TLS, 
+            specify:</p>
         
         <highlight language="config">
-            Protocols http/1.1
+Protocols h2 http/1.1
         </highlight>
 
         <p>Valid protocols are <code>http/1.1</code> for http and https connections,
@@ -3740,11 +4093,11 @@ Protocol https
         <p>It is safe to specify protocols that are unavailable/disabled. Such
         protocol names will simply be ignored.</p>
         
-        <p>Protocols specified in base servers and virtual hosts are concatenated
-            by appending the base ones, if there are configured protocols,
-            to the virtual host ones. Since protocols such as HTTP/2 allow
-            connection reuse under certain conditions, restricting protocols for
-            individual virtual hosts might not work as you expect it to.</p>
+        <p>Protocols specified in base servers are inherited for virtual hosts 
+            only if the virtual host has no own Protocols directive. Or, the other
+            way around, Protocols directives in virtual hosts replace any
+            such directive in the base server.
+        </p>
 
     </usage>
     <seealso><directive module="core">ProtocolsHonorOrder</directive></seealso>
@@ -3753,9 +4106,9 @@ Protocol https
 
 <directivesynopsis>
     <name>ProtocolsHonorOrder</name>
-    <description>Protocols available for a server/virtual host</description>
+    <description>Determines if order of Protocols determines precedence during negotiation</description>
     <syntax>ProtocolsHonorOrder On|Off</syntax>
-    <default>ProtocolsHonorOrder Off</default>
+    <default>ProtocolsHonorOrder On</default>
     <contextlist><context>server config</context><context>virtual host</context></contextlist>
     <compatibility>Only available from Apache 2.4.17 and later.</compatibility>
     
@@ -3763,15 +4116,64 @@ Protocol https
         <p>This directive specifies if the server should honor the order in which
         the <directive>Protocols</directive> directive lists protocols.</p>
         
-        <p>By default, a client supplies a list of supported protocols and the server
-            selects an available one from that list in the given order.</p>
+        <p>If configured Off, the client supplied list order of protocols has 
+            precedence over the order in the server configuration.</p>
         
-        <p>With <directive>ProtocolsHonorOrder</directive> set to <code>on</code>, the
-            client ordering does not matter and only the ordering in the server
-        settings influences the outcome of the protocol negotiation.</p>
+        <p>With <directive>ProtocolsHonorOrder</directive> set to <code>on</code> 
+            (default), the client ordering does not matter and only the ordering 
+            in the server settings influences the outcome of the protocol 
+            negotiation.</p>
         
     </usage>
     <seealso><directive module="core">Protocols</directive></seealso>
+</directivesynopsis>
+
+
+<directivesynopsis>
+    <name>RegexDefaultOptions</name>
+    <description>Allow to configure global/default options for regexes</description>
+    <syntax>RegexDefaultOptions [none] [+|-]<var>option</var> [[+|-]<var>option</var>] ...</syntax>
+    <default>RegexDefaultOptions DOLLAR_ENDONLY</default>
+    <contextlist><context>server config</context></contextlist>
+    <compatibility>Only available from Apache 2.4.30 and later.</compatibility>
+    
+    <usage>
+        <p>This directive adds some default behavior to ANY regular expression
+        used afterwards.</p>
+
+        <p>Any option preceded by a '+' is added to the already set options.<br />
+        Any option preceded by a '-' is removed from the already set options.<br />
+        Any option without a '+' or a '-' will be set, removing any other
+        already set option.<br />
+        The <code>none</code> keyword resets any already set options.</p>
+
+        <p><var>option</var> can be:</p>
+        <dl>
+            <dt><code>ICASE</code></dt>
+            <dd>Use a case-insensitive match.</dd>
+
+            <dt><code>DOTALL</code></dt>
+            <dd>Perl's /s flag.</dd>
+
+            <dt><code>DOLLAR_ENDONLY</code></dt>
+            <dd>'$' matches at end of subject string only.</dd>
+            <dd>.</dd>
+        </dl>
+        <highlight language="config">
+# 
+RegexDefaultOptions +ICASE +DOLLAR_ENDONLY
+...
+# Remove the ICASE option, but keep all the other already set options
+RegexDefaultOptions -ICASE
+...
+# Set the default option to DOTALL, resetting any other option
+RegexDefaultOptions DOTALL
+...
+# Reset all defined option
+RegexDefaultOptions none
+...
+        </highlight>
+    </usage>
 </directivesynopsis>
 
 
@@ -3900,11 +4302,15 @@ scripts</description>
     by the shebang line (first line, starting with <code>#!</code>) in the
     script. On Win32 systems this line usually looks like:</p>
 
-    <highlight language="perl">#!C:/Perl/bin/perl.exe</highlight>
+    <highlight language="perl">
+#!C:/Perl/bin/perl.exe
+    </highlight>
 
     <p>or, if <code>perl</code> is in the <code>PATH</code>, simply:</p>
 
-    <highlight language="perl">#!perl</highlight>
+    <highlight language="perl">
+#!perl
+    </highlight>
 
     <p>Setting <code>ScriptInterpreterSource Registry</code> will
     cause the Windows Registry tree <code>HKEY_CLASSES_ROOT</code> to be
@@ -4037,7 +4443,8 @@ to name-virtual hosts</description>
     >ServerAlias</directive> is used, with no different precedence for wildcards
     (nor for ServerName vs. ServerAlias).  </p>
 
-    <p>The complete list of names in the <directive>VirtualHost</directive>
+    <p>The complete list of names in the <directive type="section" module="core"
+    >VirtualHost</directive>
     directive are treated just like a (non wildcard)
     <directive>ServerAlias</directive>.</p>
 
@@ -4050,20 +4457,24 @@ to name-virtual hosts</description>
 <name>ServerName</name>
 <description>Hostname and port that the server uses to identify
 itself</description>
-<syntax>ServerName [<var>scheme</var>://]<var>fully-qualified-domain-name</var>[:<var>port</var>]</syntax>
+<syntax>ServerName [<var>scheme</var>://]<var>domain-name</var>|<var>ip-address</var>[:<var>port</var>]</syntax>
 <contextlist><context>server config</context><context>virtual host</context>
 </contextlist>
 
 <usage>
     <p>The <directive>ServerName</directive> directive sets the
-    request scheme, hostname and
-    port that the server uses to identify itself.  This is used when
-    creating redirection URLs.</p>
+    request scheme, hostname and port that the server uses to identify itself.
+    </p>
 
-    <p>Additionally, <directive>ServerName</directive> is used (possibly
-    in conjunction with <directive>ServerAlias</directive>) to uniquely
+    <p><directive>ServerName</directive> is used (possibly
+    in conjunction with <directive module="core">ServerAlias</directive>) to uniquely
     identify a virtual host, when using <a
     href="../vhosts/name-based.html">name-based virtual hosts</a>.</p>
+
+    <p>Additionally, this is used when
+    creating self-referential redirection URLs when 
+    <directive module="core">UseCanonicalName</directive> is set to a non-default
+    value.</p>
 
     <p>For example, if the name of the
     machine hosting the web server is <code>simple.example.com</code>,
@@ -4080,9 +4491,10 @@ ServerName www.example.com
     each appearance overrides the previous appearance (within that
     server).</p>
 
-    <p>If no <directive>ServerName</directive> is specified, then the
-    server attempts to deduce the client visible hostname by performing a
-    reverse lookup on an IP address of the systems hostname.</p>
+    <p>If no <directive>ServerName</directive> is specified, the
+    server attempts to deduce the client visible hostname by first asking 
+    the operating system for the system hostname, and if that fails, 
+    performing a reverse lookup on an IP address present on the system.</p>
 
     <p>If no port is specified in the
     <directive>ServerName</directive>, then the server will use the
@@ -4290,11 +4702,12 @@ header</description>
 <name>SetHandler</name>
 <description>Forces all matching files to be processed by a
 handler</description>
-<syntax>SetHandler <var>handler-name</var>|None</syntax>
+<syntax>SetHandler <var>handler-name</var>|none|<var>expression</var></syntax>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
 <override>FileInfo</override>
+<compatibility>2.5 and later</compatibility>
 
 <usage>
     <p>When placed into an <code>.htaccess</code> file or a
@@ -4329,6 +4742,15 @@ SetHandler imap-file
 &lt;FilesMatch "\.php$"&gt;
     SetHandler application/x-httpd-php
 &lt;/FilesMatch&gt;
+    </highlight>
+
+    <p>String-valued expressions can be used to reference per-request 
+    variables, including backreferences to named regular expressions:</p>
+
+    <highlight language="config">
+&lt;LocationMatch ^/app/(?&lt;sub&gt;[^/]+)/&gt;
+     SetHandler "proxy:unix:/var/run/app_%{env:MATCH_sub}.sock|fcgi://localhost:8080"
+&lt;/LocationMatch&gt;
     </highlight>
 
     <p>You can override an earlier defined <directive>SetHandler</directive>
@@ -4408,7 +4830,7 @@ server</description>
 <name>TimeOut</name>
 <description>Amount of time the server will wait for
 certain events before failing a request</description>
-<syntax>TimeOut <var>seconds</var></syntax>
+<syntax>TimeOut <var>time-interval</var>[s]</syntax>
 <default>TimeOut 60</default>
 <contextlist><context>server config</context><context>virtual host</context></contextlist>
 
@@ -4416,17 +4838,22 @@ certain events before failing a request</description>
     <p>The <directive>TimeOut</directive> directive defines the length
     of time Apache httpd will wait for I/O in various circumstances:</p>
 
-    <ol>
-      <li>When reading data from the client, the length of time to
+    <ul>
+      <li><p>When reading data from the client, the length of time to
       wait for a TCP packet to arrive if the read buffer is
-      empty.</li>
+      empty.</p>
+      <p> For initial data on a new connection, this directive doesn't
+      take effect until after any configured <directive module="core">
+      AcceptFilter</directive> has passed the new connection to the server.</p>
+      </li>
 
       <li>When writing data to the client, the length of time to wait
       for an acknowledgement of a packet if the send buffer is
       full.</li>
 
       <li>In <module>mod_cgi</module> and <module>mod_cgid</module>,
-      the length of time to wait for output from a CGI script.</li>
+      the length of time to wait for any individual block of output
+      from a CGI script.</li>
 
       <li>In <module>mod_ext_filter</module>, the length of time to
       wait for output from a filtering process.</li>
@@ -4434,7 +4861,7 @@ certain events before failing a request</description>
       <li>In <module>mod_proxy</module>, the default timeout value if
       <directive module="mod_proxy">ProxyTimeout</directive> is not
       configured.</li>
-    </ol>
+    </ul>
 
 </usage>
 </directivesynopsis>
@@ -4458,16 +4885,18 @@ certain events before failing a request</description>
     <p>Finally, for testing and diagnostic purposes only, request
     bodies may be allowed using the non-compliant <code>TraceEnable
     extended</code> directive.  The core (as an origin server) will
-    restrict the request body to 64k (plus 8k for chunk headers if
+    restrict the request body to 64Kb (plus 8Kb for chunk headers if
     <code>Transfer-Encoding: chunked</code> is used).  The core will
     reflect the full headers and all chunk headers with the response
-    body.  As a proxy server, the request body is not restricted to 64k.</p>
+    body.  As a proxy server, the request body is not restricted to 64Kb.</p>
 
     <note><title>Note</title>
-    <p>Despite claims to the contrary, <code>TRACE</code> is not
-    a security vulnerability, and there is no viable reason for
-    it to be disabled. Doing so necessarily makes your server
-    noncompliant.</p>
+
+    <p>Despite claims to the contrary, enabling the <code>TRACE</code>
+    method does not expose any security vulnerability in Apache httpd.
+    The <code>TRACE</code> method is defined by the HTTP/1.1
+    specification and implementations are expected to support it.</p>
+    
     </note>
 </usage>
 </directivesynopsis>
@@ -4489,6 +4918,8 @@ certain events before failing a request</description>
        the changes it makes are visible to any later configuration
        directives, beyond any enclosing virtual host.</p>
 </usage>
+<seealso><directive module="core">Define</directive></seealso>
+<seealso><directive module="core">IfDefine</directive></seealso>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -4577,27 +5008,27 @@ port</description>
     <p>The ordering of the lookup when the physical port is used is as
     follows:</p>
      <dl>
-     <dt><code>UseCanonicalName On</code></dt>
-     <dd>
-     <ol>
-      <li>Port provided in <directive module="core">Servername</directive></li>
-      <li>Physical port</li>
-      <li>Default port</li>
-     </ol>
-     </dd>
      <dt><code>UseCanonicalName Off | DNS</code></dt>
      <dd>
      <ol>
       <li>Parsed port from <code>Host:</code> header</li>
-      <li>Physical port</li>
+      <li>Physical port (only with <directive>UseCanonicalPhysicalPort</directive> ON)</li>
       <li>Port provided in <directive module="core">Servername</directive></li>
       <li>Default port</li>
      </ol>
      </dd>
-     </dl>
+     <dt><code>UseCanonicalName On</code></dt>
+     <dd>
+     <ol>
+      <li>Port provided in <directive module="core">Servername</directive></li>
+      <li>Physical port (only with <directive>UseCanonicalPhysicalPort</directive> ON)</li>
+      <li>Default port</li>
+     </ol>
+     </dd>
+    </dl>
 
-    <p>With <code>UseCanonicalPhysicalPort Off</code>, the
-    physical ports are removed from the ordering.</p>
+    <p>Only with <code>UseCanonicalPhysicalPort On</code>, the
+    physical ports are included in the search.</p>
     </note>
 
 </usage>
@@ -4721,15 +5152,17 @@ hostname or IP address</description>
 <description>Register non-standard HTTP methods</description>
 <syntax>RegisterHttpMethod <var>method</var> [<var>method</var> [...]]</syntax>
 <contextlist><context>server config</context></contextlist>
+<compatibility>Available in Apache HTTP Server 2.4.24 and later</compatibility>
 
 <usage>
-<p>HTTP Methods that are not conforming to the relvant RFCs are normally
-rejected by request processing in Apache HTTPD. To avoid this, modules
-can register non-standard HTTP methods they support.
-The <directive>RegisterHttpMethod</directive> allows to register such
-methods manually. This can be useful if such methods are forwarded
-for external processing, e.g. to a CGI script.</p>
+<p>This directive may be used to register additional HTTP methods.  This is
+necessary if non-standard methods need to be used with directives that accept 
+method names as parameters, or to allow particular non-standard methods to be 
+used via proxy or CGI script when the server has been configured to only pass 
+recognized methods to modules.</p>
 </usage>
+<seealso><directive module="core">HTTPProtocolOptions</directive></seealso>
+<seealso><directive module="mod_allowmethods">AllowMethods</directive></seealso>
 </directivesynopsis>
 
 <directivesynopsis>
@@ -4739,6 +5172,7 @@ for external processing, e.g. to a CGI script.</p>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context>
 </contextlist>
+<override>All</override>
 <compatibility>2.5 and later</compatibility>
 
 <usage>
@@ -4780,5 +5214,66 @@ for external processing, e.g. to a CGI script.</p>
 </usage>
 </directivesynopsis>
 
+<directivesynopsis>
+<name>QualifyRedirectURL</name>
+<description>Controls whether the REDIRECT_URL environment variable is
+             fully qualified</description>
+<syntax>QualifyRedirectURL ON|OFF</syntax>
+<default>QualifyRedirectURL OFF</default>
+<contextlist><context>server config</context><context>virtual host</context>
+<context>directory</context>
+</contextlist>
+<override>FileInfo</override>
+<compatibility>Directive supported in 2.4.18 and later. 2.4.17 acted
+as if 'QualifyRedirectURL ON' was configured.</compatibility>
+
+<usage>
+    <p>This directive controls whether the server will ensure that the 
+    REDIRECT_URL environment variable is fully qualified.  By default, 
+    the variable contains the verbatim URL requested by the client, 
+    such as "/index.html".  With <directive module="core"
+    >QualifyRedirectURL ON</directive>, the same request would result in a
+    value such as "http://www.example.com/index.html".</p>
+    <p>Even without this directive set, when a request is issued against a 
+    fully qualified URL, REDIRECT_URL will remain fully qualified.
+    </p>
+</usage>
+</directivesynopsis>
+
+<directivesynopsis>
+<name>StrictHostCheck</name>
+<description>Controls whether the server requires the requested hostname be
+             listed enumerated in the virtual host handling the request
+             </description>
+<syntax>StrictHostCheck ON|OFF</syntax>
+<default>StrictHostCheck OFF</default>
+<contextlist><context>server config</context><context>virtual host</context>
+</contextlist>
+<compatibility>Added in 2.5.1</compatibility>
+
+<usage>
+    <p>By default, the server will respond to requests for any hostname,
+    including requests addressed to unexpected or unconfigured hostnames. 
+    While this is convenient, it is sometimes desirable to limit what hostnames
+    a backend application handles since it will often generate self-referential
+    responses.</p>
+
+    <p>By setting <directive>StrictHostCheck</directive> to <em>ON</em>,
+    the server will return an HTTP 400 error if the requested hostname
+    hasn't been explicitly listed by either <directive module="core"
+    >ServerName</directive> or <directive module="core"
+    >ServerAlias</directive> in the virtual host that best matches the
+    details of the incoming connection.</p>
+
+   <p>This directive also allows matching of the requested hostname to hostnames
+   specified within the opening <directive module="core">VirtualHost</directive>
+   tag, which is a relatively obscure configuration mechanism that acts like
+   additional <directive module="core">ServerAlias</directive> entries.</p>
+
+   <p>This directive has no affect in non-default virtual hosts. The value
+   inherited from the global server configuration, or the default virtualhost 
+   for the ip:port the underlying connection, determine the effective value.</p>
+</usage>
+</directivesynopsis>
 
 </modulesynopsis>

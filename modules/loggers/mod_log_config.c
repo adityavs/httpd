@@ -39,7 +39,7 @@
  * the request will be logged to the log file(s) defined outside
  * the virtual host section. If a TransferLog or CustomLog directive
  * appears in the VirtualHost section, the log files defined outside
- * the VirtualHost will _not_ be used. This makes this module compatable
+ * the VirtualHost will _not_ be used. This makes this module compatible
  * with the CLF and config log modules, where the use of TransferLog
  * inside the VirtualHost section overrides its use outside.
  *
@@ -339,9 +339,15 @@ static const char *constant_item(request_rec *dummy, char *stuff)
 
 static const char *log_remote_host(request_rec *r, char *a)
 {
-    return ap_escape_logitem(r->pool, ap_get_remote_host(r->connection,
-                                                         r->per_dir_config,
-                                                         REMOTE_NAME, NULL));
+    const char *remote_host;
+    if (a && !strcmp(a, "c")) {
+        remote_host = ap_get_remote_host(r->connection, r->per_dir_config,
+                                         REMOTE_NAME, NULL);
+    }
+    else {
+        remote_host = ap_get_useragent_host(r, REMOTE_NAME, NULL);
+    }
+    return ap_escape_logitem(r->pool, remote_host);
 }
 
 static const char *log_remote_address(request_rec *r, char *a)
@@ -371,7 +377,7 @@ static const char *log_remote_user(request_rec *r, char *a)
     if (rvalue == NULL) {
         rvalue = "-";
     }
-    else if (strlen(rvalue) == 0) {
+    else if (!*rvalue) {
         rvalue = "\"\"";
     }
     else {
@@ -497,7 +503,7 @@ static APR_INLINE char *find_multiple_headers(apr_pool_t *pool,
     result_list = rp = NULL;
 
     do {
-        if (!strcasecmp(t_elt->key, key)) {
+        if (!ap_cstr_casecmp(t_elt->key, key)) {
             if (!result_list) {
                 result_list = rp = apr_palloc(pool, sizeof(*rp));
             }
@@ -541,10 +547,10 @@ static const char *log_header_out(request_rec *r, char *a)
 {
     const char *cp = NULL;
 
-    if (!strcasecmp(a, "Content-type") && r->content_type) {
+    if (!ap_cstr_casecmp(a, "Content-type") && r->content_type) {
         cp = ap_field_noparam(r->pool, r->content_type);
     }
-    else if (!strcasecmp(a, "Set-Cookie")) {
+    else if (!ap_cstr_casecmp(a, "Set-Cookie")) {
         cp = find_multiple_headers(r->pool, r->headers_out, a);
     }
     else {
@@ -600,7 +606,7 @@ static const char *log_cookie(request_rec *r, char *a)
                     --last;
                 }
 
-                if (!strcasecmp(name, a)) {
+                if (!ap_cstr_casecmp(name, a)) {
                     /* last1 points to the next char following the ';' delim,
                        or the trailing NUL char of the string */
                     last = last1 - (*last1 ? 2 : 1);
@@ -1204,12 +1210,13 @@ static int config_log_transaction(request_rec *r, config_log_state *cls,
     if (!log_writer) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00645)
                 "log writer isn't correctly setup");
-         return HTTP_INTERNAL_SERVER_ERROR;
+        return HTTP_INTERNAL_SERVER_ERROR;
     }
     rv = log_writer(r, cls->log_writer, strs, strl, format->nelts, len);
-    if (rv != APR_SUCCESS)
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r, APLOGNO(00646) "Error writing to %s",
-                      cls->fname);
+    if (rv != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r, APLOGNO(00646)
+                      "Error writing to %s", cls->fname);
+    }
     return OK;
 }
 

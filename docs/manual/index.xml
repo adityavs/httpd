@@ -44,6 +44,7 @@ Documentation</title>
     <page href="filter.html">Filters</page>
     <page href="handler.html">Handlers</page>
     <page href="expr.html">Expression parser</page>
+    <page href="mod/overrides.html">Override Class Index for .htaccess</page>
     <page href="programs/">Server and Supporting Programs</page>
     <page href="glossary.html">Glossary</page>
 </category>
@@ -70,13 +71,15 @@ Documentation</title>
 </category>
 
 <category id="howto"><title>How-To / Tutorials</title>
+	<page href="howto">How to index page </page>
     <page href="howto/auth.html">Authentication and Authorization</page>
     <page href="howto/access.html">Access Control</page>
     <page href="howto/cgi.html">CGI: Dynamic Content</page>
     <page href="howto/htaccess.html">.htaccess files</page>
     <page href="howto/ssi.html">Server Side Includes (SSI)</page>
-    <page href="howto/public_html.html">Per-user Web Directories
-    (public_html)</page>
+    <page href="howto/public_html.html">Per-user Web Directories (public_html)</page>
+    <page href="howto/reverse_proxy.html">Reverse proxy setup guide</page>
+    <page href="howto/http2.html">HTTP/2 guide</page>
 </category>
 
 <category id="platform"><title>Platform Specific Notes</title>

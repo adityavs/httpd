@@ -15,7 +15,7 @@
  */
 
 /*
- * http_config.c: once was auxillary functions for reading httpd's config
+ * http_config.c: once was auxiliary functions for reading httpd's config
  * file and converting filenames into a namespace
  *
  * Rob McCool
@@ -136,7 +136,8 @@ AP_DECLARE(int) ap_hook_post_config(ap_HOOK_post_config_t *pf,
         apr_hook_debug_show("post_config", aszPre, aszSucc);
 }
 
-AP_DECLARE(apr_array_header_t *) ap_hook_get_post_config(void) {
+AP_DECLARE(apr_array_header_t *) ap_hook_get_post_config(void)
+{
     return _hooks.link_post_config;
 }
 
@@ -148,7 +149,7 @@ AP_DECLARE(int) ap_run_post_config(apr_pool_t *pconf,
     ap_LINK_post_config_t *pHook;
     int n;
 
-    if(!_hooks.link_post_config)
+    if (!_hooks.link_post_config)
         return;
 
     pHook = (ap_LINK_post_config_t *)_hooks.link_post_config->elts;
@@ -322,24 +323,34 @@ static ap_conf_vector_t *create_server_config(apr_pool_t *p, server_rec *s)
 }
 
 static void merge_server_configs(apr_pool_t *p, ap_conf_vector_t *base,
-                                 ap_conf_vector_t *virt)
+                                 server_rec *virt)
 {
     /* Can reuse the 'virt' vector for the spine of it, since we don't
      * have to deal with the moral equivalent of .htaccess files here...
      */
 
     void **base_vector = (void **)base;
-    void **virt_vector = (void **)virt;
+    void **virt_vector = (void **)virt->module_config;
     module *modp;
 
     for (modp = ap_top_module; modp; modp = modp->next) {
         merger_func df = modp->merge_server_config;
         int i = modp->module_index;
 
-        if (!virt_vector[i])
-            virt_vector[i] = base_vector[i];
-        else if (df)
+        if (!virt_vector[i]) {
+            if (df && modp->create_server_config
+                   && (ap_get_module_flags(modp) &
+                       AP_MODULE_FLAG_ALWAYS_MERGE)) {
+                virt_vector[i] = (*modp->create_server_config)(p, virt);
+            }
+            else {
+                virt_vector[i] = base_vector[i];
+                df = NULL;
+            }
+        }
+        if (df) {
             virt_vector[i] = (*df)(p, base_vector[i], virt_vector[i]);
+        }
     }
 }
 
@@ -736,7 +747,7 @@ AP_DECLARE(void) ap_remove_loaded_module(module *mod)
      *
      *  Note: 1. We cannot determine if the module was successfully
      *           removed by ap_remove_module().
-     *        2. We have not to complain explicity when the module
+     *        2. We have not to complain explicitly when the module
      *           is not found because ap_remove_module() did it
      *           for us already.
      */
@@ -848,7 +859,7 @@ static const char *invoke_cmd(const command_rec *cmd, cmd_parms *parms,
     char *w, *w2, *w3;
     const char *errmsg = NULL;
 
-    /** Have we been provided a list of acceptable directives? */
+    /* Have we been provided a list of acceptable directives? */
     if (parms->override_list != NULL) { 
          if (apr_table_get(parms->override_list, cmd->name) != NULL) { 
               override_list_ok = 1;
@@ -862,6 +873,11 @@ static const char *invoke_cmd(const command_rec *cmd, cmd_parms *parms,
                           "%s in .htaccess forbidden by AllowOverride",
                           cmd->name);
             return NULL;
+        }
+        else if (parms->directive && parms->directive->parent) {
+            return apr_pstrcat(parms->pool, cmd->name, " not allowed in ",
+                               parms->directive->parent->directive, ">",
+                               " context", NULL);
         }
         else {
             return apr_pstrcat(parms->pool, cmd->name,
@@ -1024,11 +1040,11 @@ static const char *invoke_cmd(const command_rec *cmd, cmd_parms *parms,
          */
         w = ap_getword_conf(parms->temp_pool, &args);
 
-        if (*w == '\0' || (strcasecmp(w, "on") && strcasecmp(w, "off")))
+        if (*w == '\0' || (ap_cstr_casecmp(w, "on") && ap_cstr_casecmp(w, "off")))
             return apr_pstrcat(parms->pool, cmd->name, " must be On or Off",
                                NULL);
 
-        return cmd->AP_FLAG(parms, mconfig, strcasecmp(w, "off") != 0);
+        return cmd->AP_FLAG(parms, mconfig, ap_cstr_casecmp(w, "off") != 0);
 
     default:
         return apr_pstrcat(parms->pool, cmd->name,
@@ -1041,7 +1057,7 @@ AP_CORE_DECLARE(const command_rec *) ap_find_command(const char *name,
                                                      const command_rec *cmds)
 {
     while (cmds->name) {
-        if (!strcasecmp(name, cmds->name))
+        if (!ap_cstr_casecmp(name, cmds->name))
             return cmds;
 
         ++cmds;
@@ -1116,7 +1132,11 @@ static const char *ap_build_config_sub(apr_pool_t *p, apr_pool_t *temp_pool,
     args = ap_resolve_env(temp_pool, l);
 #endif
 
-    cmd_name = ap_getword_conf(p, &args);
+    /* The first word is the name of a directive.  We can safely use the
+     * 'temp_pool' for it.  If it matches the name of a known directive, we
+     * can reference the string within the module if needed.  Otherwise, we
+     * can still make a copy in the 'p' pool. */
+    cmd_name = ap_getword_conf(temp_pool, &args);
     if (*cmd_name == '\0') {
         /* Note: this branch should not occur. An empty line should have
          * triggered the exit further above.
@@ -1137,10 +1157,11 @@ static const char *ap_build_config_sub(apr_pool_t *p, apr_pool_t *temp_pool,
     newdir = apr_pcalloc(p, sizeof(ap_directive_t));
     newdir->filename = parms->config_file->name;
     newdir->line_num = parms->config_file->line_number;
-    newdir->directive = cmd_name;
     newdir->args = apr_pstrdup(p, args);
 
     if ((cmd = ap_find_command_in_modules(cmd_name, &mod)) != NULL) {
+        newdir->directive = cmd->name;
+        
         if (cmd->req_override & EXEC_ON_READ) {
             ap_directive_t *sub_tree = NULL;
 
@@ -1174,6 +1195,11 @@ static const char *ap_build_config_sub(apr_pool_t *p, apr_pool_t *temp_pool,
             return retval;
         }
     }
+    else {
+        /* No known directive found?  Make a copy of what we have parsed. */
+        newdir->directive = apr_pstrdup(p, cmd_name);
+    }
+
 
     if (cmd_name[0] == '<') {
         if (cmd_name[1] != '/') {
@@ -1196,8 +1222,8 @@ static const char *ap_build_config_sub(apr_pool_t *p, apr_pool_t *temp_pool,
 
             *bracket = '\0';
 
-            if (strcasecmp(cmd_name + 2,
-                           (*curr_parent)->directive + 1) != 0) {
+            if (ap_cstr_casecmp(cmd_name + 2,
+                              (*curr_parent)->directive + 1) != 0) {
                 parms->err_directive = newdir;
                 return apr_pstrcat(p, "Expected </",
                                    (*curr_parent)->directive + 1, "> but saw ",
@@ -1226,7 +1252,7 @@ AP_DECLARE(const char *) ap_build_cont_config(apr_pool_t *p,
                                               cmd_parms *parms,
                                               ap_directive_t **current,
                                               ap_directive_t **curr_parent,
-                                              char *orig_directive)
+                                              const char *orig_directive)
 {
     char *bracket;
     const char *retval;
@@ -1243,7 +1269,7 @@ AP_DECLARE(const char *) ap_build_cont_config(apr_pool_t *p,
     while ((rc = ap_varbuf_cfg_getline(&vb, parms->config_file, max_len))
            == APR_SUCCESS) {
         if (!memcmp(vb.buf, "</", 2)
-            && (strcasecmp(vb.buf + 2, bracket) == 0)
+            && (ap_cstr_casecmp(vb.buf + 2, bracket) == 0)
             && (*curr_parent == NULL)) {
             break;
         }
@@ -1317,7 +1343,7 @@ static const char *ap_walk_config_sub(const ap_directive_t *current,
         if (retval != NULL && strcmp(retval, DECLINE_CMD) != 0) {
             /* If the directive in error has already been set, don't
              * replace it.  Otherwise, an error inside a container
-             * will be reported as occuring on the first line of the
+             * will be reported as occurring on the first line of the
              * container.
              */
             if (!parms->err_directive) {
@@ -1381,7 +1407,7 @@ AP_DECLARE(const char *) ap_build_config(cmd_parms *parms,
          */
         last_ptr = &(current->last);
 
-        if(last_ptr && *last_ptr) {
+        if (last_ptr && *last_ptr) {
             current = *last_ptr;
         }
 
@@ -1389,7 +1415,7 @@ AP_DECLARE(const char *) ap_build_config(cmd_parms *parms,
             current = current->next;
         }
 
-        if(last_ptr) {
+        if (last_ptr) {
             /* update cached pointer to last node */
             *last_ptr = current;
         }
@@ -1599,7 +1625,7 @@ AP_DECLARE(char *) ap_runtime_dir_relative(apr_pool_t *p, const char *file)
 }
 
 
-AP_DECLARE(const char *) ap_soak_end_container(cmd_parms *cmd, char *directive)
+AP_DECLARE(const char *) ap_soak_end_container(cmd_parms *cmd, const char *directive)
 {
     struct ap_varbuf vb;
     const char *args;
@@ -1611,8 +1637,8 @@ AP_DECLARE(const char *) ap_soak_end_container(cmd_parms *cmd, char *directive)
 
     ap_varbuf_init(cmd->temp_pool, &vb, VARBUF_INIT_LEN);
 
-    while((rc = ap_varbuf_cfg_getline(&vb, cmd->config_file, max_len))
-          == APR_SUCCESS) {
+    while ((rc = ap_varbuf_cfg_getline(&vb, cmd->config_file, max_len))
+           == APR_SUCCESS) {
         args = vb.buf;
 
         cmd_name = ap_getword_conf(cmd->temp_pool, &args);
@@ -1620,7 +1646,7 @@ AP_DECLARE(const char *) ap_soak_end_container(cmd_parms *cmd, char *directive)
             if (cmd_name[1] == '/') {
                 cmd_name[strlen(cmd_name) - 1] = '\0';
 
-                if (strcasecmp(cmd_name + 2, directive + 1) != 0) {
+                if (ap_cstr_casecmp(cmd_name + 2, directive + 1) != 0) {
                     return apr_pstrcat(cmd->pool, "Expected </",
                                        directive + 1, "> but saw ",
                                        cmd_name, ">", NULL);
@@ -1706,14 +1732,14 @@ typedef struct {
 static apr_status_t arr_elts_getstr(void *buf, apr_size_t bufsiz, void *param)
 {
     arr_elts_param_t *arr_param = (arr_elts_param_t *)param;
-    char *elt;
+    const char *elt;
 
     /* End of array reached? */
     if (++arr_param->curr_idx > arr_param->array->nelts)
         return APR_EOF;
 
     /* return the line */
-    elt = ((char **)arr_param->array->elts)[arr_param->curr_idx - 1];
+    elt = ((const char **)arr_param->array->elts)[arr_param->curr_idx - 1];
     if (apr_cpystrn(buf, elt, bufsiz) - (char *)buf >= bufsiz - 1)
         return APR_ENOSPC;
     return APR_SUCCESS;
@@ -1781,6 +1807,54 @@ static int fname_alphasort(const void *fn1, const void *fn2)
     return strcmp(f1->fname,f2->fname);
 }
 
+/**
+ * Used by -D DUMP_INCLUDES to output the config file "tree".
+ */
+static void dump_config_name(const char *fname, apr_pool_t *p)
+{
+    unsigned i, recursion, line_number;
+    void *data;
+    apr_file_t *out = NULL;
+
+    apr_file_open_stdout(&out, p);
+
+    /* ap_include_sentinel is defined by the core Include directive; use it to
+     * figure out how deep in the stack we are.
+     */
+    apr_pool_userdata_get(&data, "ap_include_sentinel", p);
+
+    if (data) {
+        recursion = *(unsigned *)data;
+    } else {
+        recursion = 0;
+    }
+
+    /* Indent once for each level. */
+    for (i = 0; i < (recursion + 1); ++i) {
+        apr_file_printf(out, "  ");
+    }
+
+    /* ap_include_lineno is similarly defined to tell us where in the last
+     * config file we were.
+     */
+    apr_pool_userdata_get(&data, "ap_include_lineno", p);
+
+    if (data) {
+        line_number = *(unsigned *)data;
+    } else {
+        line_number = 0;
+    }
+
+    /* Print the line number and the name of the parsed file. */
+    if (line_number > 0) {
+        apr_file_printf(out, "(%u)", line_number);
+    } else {
+        apr_file_printf(out, "(*)");
+    }
+
+    apr_file_printf(out, " %s\n", fname);
+}
+
 AP_DECLARE(const char *) ap_process_resource_config(server_rec *s,
                                                     const char *fname,
                                                     ap_directive_t **conftree,
@@ -1803,6 +1877,10 @@ AP_DECLARE(const char *) ap_process_resource_config(server_rec *s,
     if (rv != APR_SUCCESS) {
         return apr_psprintf(p, "Could not open configuration file %s: %pm",
                             fname, &rv);
+    }
+
+    if (ap_exists_config_define("DUMP_INCLUDES")) {
+        dump_config_name(fname, p);
     }
 
     parms.config_file = cfp;
@@ -1893,6 +1971,15 @@ static const char *process_resource_config_nofnmatch(server_rec *s,
 
         return NULL;
     }
+    else if (optional) {
+        /* If the optinal flag is set (like for IncludeOptional) we can
+         * tolerate that no file or directory is present and bail out.
+         */
+        apr_finfo_t finfo;
+        if (apr_stat(&finfo, fname, APR_FINFO_TYPE, ptemp) != APR_SUCCESS
+            || finfo.filetype == APR_NOFILE)
+            return NULL;
+    }
 
     return ap_process_resource_config(s, fname, conftree, p, ptemp);
 }
@@ -1917,7 +2004,7 @@ static const char *process_resource_config_fnmatch(server_rec *s,
     /* find the first part of the filename */
     rest = ap_strchr_c(fname, '/');
     if (rest) {
-        fname = apr_pstrndup(ptemp, fname, rest - fname);
+        fname = apr_pstrmemdup(ptemp, fname, rest - fname);
         rest++;
     }
 
@@ -1943,6 +2030,12 @@ static const char *process_resource_config_fnmatch(server_rec *s,
      */
     rv = apr_dir_open(&dirp, path, ptemp);
     if (rv != APR_SUCCESS) {
+        /* If the directory doesn't exist and the optional flag is set
+         * there is no need to return an error.
+         */
+        if (rv == APR_ENOENT && optional) {
+            return NULL;
+        }
         return apr_psprintf(p, "Could not open config directory %s: %pm",
                             path, &rv);
     }
@@ -1958,7 +2051,7 @@ static const char *process_resource_config_fnmatch(server_rec *s,
             /* If matching internal to path, and we happen to match something
              * other than a directory, skip it
              */
-            if (rest && (rv == APR_SUCCESS) && (dirent.filetype != APR_DIR)) {
+            if (rest && (dirent.filetype != APR_DIR)) {
                 continue;
             }
             fnew = (fnames *) apr_array_push(candidates);
@@ -2128,6 +2221,8 @@ AP_CORE_DECLARE(int) ap_parse_htaccess(ap_conf_vector_t **result,
             const char *errmsg;
             ap_directive_t *temptree = NULL;
 
+            /* Mark the request as tainted by .htaccess */
+            r->taint |= AP_TAINT_HTACCESS;
             dc = ap_create_per_dir_config(r->pool);
 
             parms.config_file = f;
@@ -2264,8 +2359,7 @@ AP_DECLARE(void) ap_fixup_virtual_hosts(apr_pool_t *p, server_rec *main_server)
     dconf->log = &main_server->log;
 
     for (virt = main_server->next; virt; virt = virt->next) {
-        merge_server_configs(p, main_server->module_config,
-                             virt->module_config);
+        merge_server_configs(p, main_server->module_config, virt);
 
         virt->lookup_defaults =
             ap_merge_per_dir_configs(p, main_server->lookup_defaults,
@@ -2400,6 +2494,16 @@ AP_DECLARE(server_rec*) ap_read_config(process_rec *process, apr_pool_t *ptemp,
     }
 
     init_config_globals(p);
+
+    if (ap_exists_config_define("DUMP_INCLUDES")) {
+        apr_file_t *out = NULL;
+        apr_file_open_stdout(&out, p);
+
+        /* Included files will be dumped as the config is walked; print a
+         * header.
+         */
+        apr_file_printf(out, "Included configuration files:\n");
+    }
 
     /* All server-wide config files now have the SAME syntax... */
     error = process_command_config(s, ap_server_pre_read_config, conftree,
@@ -2590,6 +2694,16 @@ AP_DECLARE(void) ap_show_modules(void)
         printf("  %s\n", ap_loaded_modules[n]->name);
 }
 
+AP_DECLARE(int) ap_exists_directive(apr_pool_t *p, const char *name)
+{
+    char *lname = apr_pstrdup(p, name);
+
+    ap_str_tolower(lname);
+    
+    return ap_config_hash &&
+        apr_hash_get(ap_config_hash, lname, APR_HASH_KEY_STRING) != NULL;
+}
+
 AP_DECLARE(void *) ap_retained_data_get(const char *key)
 {
     void *retained;
@@ -2613,7 +2727,7 @@ static int count_directives_sub(const char *directive, ap_directive_t *current)
     while (current != NULL) {
         if (current->first_child != NULL)
             count += count_directives_sub(directive, current->first_child);
-        if (strcasecmp(current->directive, directive) == 0)
+        if (ap_cstr_casecmp(current->directive, directive) == 0)
             count++;
         current = current->next;
     }

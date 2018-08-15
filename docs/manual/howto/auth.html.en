@@ -18,12 +18,13 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">How-To / Tutorials</a></div><div id="page-content"><div id="preamble"><h1>Authentication and Authorization</h1>
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../en/howto/auth.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../es/howto/auth.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="../fr/howto/auth.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/howto/auth.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/howto/auth.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -50,10 +51,10 @@ person in</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#beyond">Beyond just authorization</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#socache">Authentication Caching</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#moreinformation">More information</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+</ul><h3>See also</h3><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="related" id="related">Related Modules and Directives</a></h2>
+<h2><a name="related" id="related">Related Modules and Directives</a><a title="Permanent link" href="#related" class="permalink">&para;</a></h2>
 
 <p>There are three types of modules involved in the authentication and
 authorization process.  You will usually need to choose at least one
@@ -112,7 +113,7 @@ module from each group.</p>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="introduction" id="introduction">Introduction</a></h2>
+<h2><a name="introduction" id="introduction">Introduction</a><a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
     <p>If you have information on your web site that is sensitive
     or intended for only a small group of people, the techniques in
     this article will help you make sure that the people that see
@@ -127,7 +128,7 @@ module from each group.</p>
     </div>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="theprerequisites" id="theprerequisites">The Prerequisites</a></h2>
+<h2><a name="theprerequisites" id="theprerequisites">The Prerequisites</a><a title="Permanent link" href="#theprerequisites" class="permalink">&para;</a></h2>
     <p>The directives discussed in this article will need to go
     either in your main server configuration file (typically in a
     <code class="directive"><a href="../mod/core.html#directory">&lt;Directory&gt;</a></code> section), or
@@ -164,7 +165,7 @@ module from each group.</p>
     and use of authentication and authorization in the web server.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="gettingitworking" id="gettingitworking">Getting it working</a></h2>
+<h2><a name="gettingitworking" id="gettingitworking">Getting it working</a><a title="Permanent link" href="#gettingitworking" class="permalink">&para;</a></h2>
     <p>Here's the basics of password protecting a directory on your
     server.</p>
 
@@ -226,7 +227,7 @@ Require user rbowen</pre>
 
 
     <p>Let's examine each of those directives individually. The <code class="directive"><a href="../mod/mod_authn_core.html#authtype">AuthType</a></code> directive selects
-    that method that is used to authenticate the user. The most
+    the method that is used to authenticate the user. The most
     common method is <code>Basic</code>, and this is the method
     implemented by <code class="module"><a href="../mod/mod_auth_basic.html">mod_auth_basic</a></code>. It is important to be aware,
     however, that Basic authentication sends the password from the client to
@@ -279,7 +280,7 @@ Require user rbowen</pre>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
 <h2><a name="lettingmorethanonepersonin" id="lettingmorethanonepersonin">Letting more than one
-person in</a></h2>
+person in</a><a title="Permanent link" href="#lettingmorethanonepersonin" class="permalink">&para;</a></h2>
     <p>The directives above only let one person (specifically
     someone with a username of <code>rbowen</code>) into the
     directory. In most cases, you'll want to let more than one
@@ -344,7 +345,7 @@ Require group GroupName</pre>
     <code class="directive"><a href="../mod/mod_authn_file.html#authuserfile">AuthUserFile</a></code> directive.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="possibleproblems" id="possibleproblems">Possible problems</a></h2>
+<h2><a name="possibleproblems" id="possibleproblems">Possible problems</a><a title="Permanent link" href="#possibleproblems" class="permalink">&para;</a></h2>
     <p>Because of the way that Basic authentication is specified,
     your username and password must be verified every time you
     request a document from the server. This is even if you're
@@ -364,7 +365,7 @@ Require group GroupName</pre>
     different authentication method at that time.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="dbmdbd" id="dbmdbd">Alternate password storage</a></h2>
+<h2><a name="dbmdbd" id="dbmdbd">Alternate password storage</a><a title="Permanent link" href="#dbmdbd" class="permalink">&para;</a></h2>
 
     <p>Because storing passwords in plain text files has the above
     problems, you may wish to store your passwords somewhere else, such
@@ -390,7 +391,7 @@ Require group GroupName</pre>
     <code class="module"><a href="../mod/mod_authn_dbm.html">mod_authn_dbm</a></code> documentation for more details.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="multprovider" id="multprovider">Using multiple providers</a></h2>
+<h2><a name="multprovider" id="multprovider">Using multiple providers</a><a title="Permanent link" href="#multprovider" class="permalink">&para;</a></h2>
 
     <p>With the introduction of the new provider based authentication and
     authorization architecture, you are no longer locked into a single
@@ -446,7 +447,7 @@ Require group GroupName</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="beyond" id="beyond">Beyond just authorization</a></h2>
+<h2><a name="beyond" id="beyond">Beyond just authorization</a><a title="Permanent link" href="#beyond" class="permalink">&para;</a></h2>
 
     <p>The way that authorization can be applied is now much more flexible
     than just a single check against a single data store. Ordering, logic
@@ -570,11 +571,23 @@ Require group GroupName</pre>
         <code class="directive"><a href="../mod/mod_access_compat.html#satisfy">Satisfy</a></code> are no longer needed.
         However to provide backwards compatibility for older configurations, these
         directives have been moved to the <code class="module"><a href="../mod/mod_access_compat.html">mod_access_compat</a></code> module.</p>
+
+        <div class="warning"><h3>Note</h3>
+        <p>The directives provided by <code class="module"><a href="../mod/mod_access_compat.html">mod_access_compat</a></code> have
+        been deprecated by <code class="module"><a href="../mod/mod_authz_host.html">mod_authz_host</a></code>.
+        Mixing old directives like <code class="directive"><a href="../mod/mod_access_compat.html#order">Order</a></code>, <code class="directive"><a href="../mod/mod_access_compat.html#allow">Allow</a></code> or <code class="directive"><a href="../mod/mod_access_compat.html#deny">Deny</a></code> with new ones like
+        <code class="directive"><a href="../mod/mod_authz_core.html#require">Require</a></code> is technically possible
+        but discouraged. The <code class="module"><a href="../mod/mod_access_compat.html">mod_access_compat</a></code> module was created to support
+        configurations containing only old directives to facilitate the 2.4 upgrade.
+        Please check the <a href="../upgrading.html">upgrading</a> guide for more
+        information.
+        </p>
+        </div>
     
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="socache" id="socache">Authentication Caching</a></h2>
+<h2><a name="socache" id="socache">Authentication Caching</a><a title="Permanent link" href="#socache" class="permalink">&para;</a></h2>
     <p>There may be times when authentication puts an unacceptable load
     on a provider or on your network.  This is most likely to affect users
     of <code class="module"><a href="../mod/mod_authn_dbd.html">mod_authn_dbd</a></code> (or third-party/custom providers).
@@ -584,7 +597,7 @@ Require group GroupName</pre>
     <p>This may offer a substantial performance boost to some users.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="moreinformation" id="moreinformation">More information</a></h2>
+<h2><a name="moreinformation" id="moreinformation">More information</a><a title="Permanent link" href="#moreinformation" class="permalink">&para;</a></h2>
     <p>You should also read the documentation for
     <code class="module"><a href="../mod/mod_auth_basic.html">mod_auth_basic</a></code> and <code class="module"><a href="../mod/mod_authz_host.html">mod_authz_host</a></code>
     which contain some more information about how this all works.  The
@@ -601,6 +614,7 @@ Require group GroupName</pre>
 </div></div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/howto/auth.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../es/howto/auth.html" hreflang="es" rel="alternate" title="Español">&nbsp;es&nbsp;</a> |
 <a href="../fr/howto/auth.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/howto/auth.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/howto/auth.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
@@ -623,7 +637,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/howto/auth.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

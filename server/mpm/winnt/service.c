@@ -104,7 +104,7 @@ static APR_INLINE SC_HANDLE OpenSCManager(const void *lpMachine,
  *
  * If ap_real_exit_code is reset to 0, it will not be set or trigger this
  * behavior on exit.  All service and child processes are expected to
- * reset this flag to zero to avoid undesireable side effects.
+ * reset this flag to zero to avoid undesirable side effects.
  */
 AP_DECLARE_DATA int ap_real_exit_code = 1;
 
@@ -231,7 +231,8 @@ static int ReportStatusToSCMgr(int currentState, int waitHint,
             ctx->ssStatus.dwWaitHint = 0;
             ctx->ssStatus.dwCheckPoint = 0;
             ctx->ssStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP
-                                             | SERVICE_ACCEPT_SHUTDOWN;
+                                             | SERVICE_ACCEPT_SHUTDOWN
+                                             | SERVICE_ACCEPT_PRESHUTDOWN;
         }
         else if (currentState == SERVICE_STOPPED) {
             ctx->ssStatus.dwWaitHint = 0;
@@ -345,7 +346,8 @@ static DWORD WINAPI service_nt_ctrl(DWORD dwCtrlCode, DWORD dwEventType,
 
     /* SHUTDOWN is offered before STOP, accept the first opportunity */
     if ((dwCtrlCode == SERVICE_CONTROL_STOP)
-         || (dwCtrlCode == SERVICE_CONTROL_SHUTDOWN))
+         || (dwCtrlCode == SERVICE_CONTROL_SHUTDOWN)
+         || (dwCtrlCode == SERVICE_CONTROL_PRESHUTDOWN))
     {
         ap_signal_parent(SIGNAL_PARENT_SHUTDOWN);
         ReportStatusToSCMgr(SERVICE_STOP_PENDING, 30000, ctx);
@@ -467,7 +469,7 @@ static void __stdcall service_nt_main_fn(DWORD argc, LPSTR *argv)
         {
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP, 
                      apr_get_os_error(), NULL, 
-                     APLOGNO(00365) "Failure registering service handler");
+                     APLOGNO(10008) "Failure registering service handler");
         return;
     }
 
@@ -956,7 +958,7 @@ apr_status_t mpm_service_uninstall(void)
     if (!schSCManager) {
         rv = apr_get_os_error();
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP, rv, NULL,
-                     APLOGNO(00369)  "Failed to open the Windows service "
+                     APLOGNO(10009)  "Failed to open the Windows service "
                      "manager, perhaps you forgot to log in as Adminstrator?");
         return (rv);
     }
@@ -976,7 +978,7 @@ apr_status_t mpm_service_uninstall(void)
     if (!schService) {
         rv = apr_get_os_error();
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP, rv, NULL,
-                     APLOGNO(00373) "Failed to open the '%s' service",
+                     APLOGNO(10010) "Failed to open the '%s' service",
                      mpm_display_name);
         return (rv);
     }
@@ -1046,7 +1048,7 @@ apr_status_t mpm_service_start(apr_pool_t *ptemp, int argc,
     if (!schSCManager) {
         rv = apr_get_os_error();
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP, rv, NULL,
-                     APLOGNO(00369)  "Failed to open the Windows service "
+                     APLOGNO(10011)  "Failed to open the Windows service "
                      "manager, perhaps you forgot to log in as Adminstrator?");
         return (rv);
     }
@@ -1068,7 +1070,7 @@ apr_status_t mpm_service_start(apr_pool_t *ptemp, int argc,
     if (!schService) {
         rv = apr_get_os_error();
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP, rv, NULL, 
-                     APLOGNO(00373) "Failed to open the '%s' service",
+                     APLOGNO(10012) "Failed to open the '%s' service",
                      mpm_display_name);
         CloseServiceHandle(schSCManager);
         return (rv);
@@ -1156,7 +1158,7 @@ void mpm_signal_service(apr_pool_t *ptemp, int signal)
     if (!schSCManager) {
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP,
                      apr_get_os_error(), NULL,
-                     APLOGNO(00369)  "Failed to open the Windows service "
+                     APLOGNO(10013)  "Failed to open the Windows service "
                      "manager, perhaps you forgot to log in as Adminstrator?");
         return;
     }
@@ -1183,7 +1185,7 @@ void mpm_signal_service(apr_pool_t *ptemp, int signal)
         /* Could not open the service */
         ap_log_error(APLOG_MARK, APLOG_ERR | APLOG_STARTUP,
                      apr_get_os_error(), NULL,
-                     APLOGNO(00373) "Failed to open the '%s' service",
+                     APLOGNO(10014) "Failed to open the '%s' service",
                      mpm_display_name);
         CloseServiceHandle(schSCManager);
         return;

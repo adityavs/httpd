@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">モジュール</a> | <a href="../mod/quickreference.html">ディレクティブ</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">用語</a> | <a href="../sitemap.html">サイトマップ</a></p>
 <p class="apache">Apache HTTP サーバ バージョン 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP サーバ</a> &gt; <a href="http://httpd.apache.org/docs/">ドキュメンテーション</a> &gt; <a href="../">バージョン 2.5</a> &gt; <a href="./">モジュール</a></div>
@@ -77,10 +77,12 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#directoryslash">DirectorySlash</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#fallbackresource">FallbackResource</a></li>
 </ul>
-<ul class="seealso"><li><a href="#comments_section">コメント</a></li></ul></div>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_dir">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_dir">Report a bug</a></li></ul><h3>参照</h3>
+<ul class="seealso">
+<li><a href="#comments_section">コメント</a></li></ul></div>
 
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DirectoryCheckHandler" id="DirectoryCheckHandler">DirectoryCheckHandler</a> <a name="directorycheckhandler" id="directorycheckhandler">ディレクティブ</a></h2>
+<div class="directive-section"><h2><a name="DirectoryCheckHandler" id="DirectoryCheckHandler">DirectoryCheckHandler</a> <a name="directorycheckhandler" id="directorycheckhandler">ディレクティブ</a><a title="Permanent link" href="#directorycheckhandler" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">説明:</a></th><td>Toggle how this module responds when another handler is configured</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">構文:</a></th><td><code>DirectoryCheckHandler On|Off</code></td></tr>
@@ -95,7 +97,7 @@ act as if "DirectoryCheckHandler ON" was specified.</td></tr>
             まだ翻訳されていません。英語版をご覧ください。
             </p></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DirectoryIndex" id="DirectoryIndex">DirectoryIndex</a> <a name="directoryindex" id="directoryindex">ディレクティブ</a></h2>
+<div class="directive-section"><h2><a name="DirectoryIndex" id="DirectoryIndex">DirectoryIndex</a> <a name="directoryindex" id="directoryindex">ディレクティブ</a><a title="Permanent link" href="#directoryindex" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">説明:</a></th><td>クライアントがディレクトリをリクエストしたときに調べる
 リソースのリスト</td></tr>
@@ -141,7 +143,7 @@ act as if "DirectoryCheckHandler ON" was specified.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DirectoryIndexRedirect" id="DirectoryIndexRedirect">DirectoryIndexRedirect</a> <a name="directoryindexredirect" id="directoryindexredirect">ディレクティブ</a></h2>
+<div class="directive-section"><h2><a name="DirectoryIndexRedirect" id="DirectoryIndexRedirect">DirectoryIndexRedirect</a> <a name="directoryindexredirect" id="directoryindexredirect">ディレクティブ</a><a title="Permanent link" href="#directoryindexredirect" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">説明:</a></th><td>Configures an external redirect for directory indexes.
 </td></tr>
@@ -158,7 +160,7 @@ act as if "DirectoryCheckHandler ON" was specified.</td></tr>
             まだ翻訳されていません。英語版をご覧ください。
             </p></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="DirectorySlash" id="DirectorySlash">DirectorySlash</a> <a name="directoryslash" id="directoryslash">ディレクティブ</a></h2>
+<div class="directive-section"><h2><a name="DirectorySlash" id="DirectorySlash">DirectorySlash</a> <a name="directoryslash" id="directoryslash">ディレクティブ</a><a title="Permanent link" href="#directoryslash" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">説明:</a></th><td>パス末尾のスラッシュでリダイレクトするかどうかのオンオフをトグルさせる</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">構文:</a></th><td><code>DirectorySlash On|Off</code></td></tr>
@@ -216,7 +218,7 @@ act as if "DirectoryCheckHandler ON" was specified.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="FallbackResource" id="FallbackResource">FallbackResource</a> <a name="fallbackresource" id="fallbackresource">ディレクティブ</a></h2>
+<div class="directive-section"><h2><a name="FallbackResource" id="FallbackResource">FallbackResource</a> <a name="fallbackresource" id="fallbackresource">ディレクティブ</a><a title="Permanent link" href="#fallbackresource" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">説明:</a></th><td>Define a default URL for requests that don't map to a file</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">構文:</a></th><td><code /></td></tr>
@@ -250,7 +252,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_dir.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />この文書は <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> のライセンスで提供されています。.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />この文書は <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> のライセンスで提供されています。.</p>
 <p class="menu"><a href="../mod/">モジュール</a> | <a href="../mod/quickreference.html">ディレクティブ</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">用語</a> | <a href="../sitemap.html">サイトマップ</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

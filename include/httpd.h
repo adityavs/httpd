@@ -55,6 +55,7 @@
 #include "apr_buckets.h"
 #include "apr_poll.h"
 #include "apr_thread_proc.h"
+#include "apr_hash.h"
 
 #include "os.h"
 
@@ -200,6 +201,10 @@ extern "C" {
 #ifndef DEFAULT_LIMIT_REQUEST_FIELDS
 #define DEFAULT_LIMIT_REQUEST_FIELDS 100
 #endif
+/** default/hard limit on number of leading/trailing empty lines */
+#ifndef DEFAULT_LIMIT_BLANK_LINES
+#define DEFAULT_LIMIT_BLANK_LINES 10
+#endif
 
 /**
  * The default default character set name to add if AddDefaultCharset is
@@ -305,7 +310,7 @@ extern "C" {
 
 /**
  * APR_HAS_LARGE_FILES introduces the problem of spliting sendfile into
- * mutiple buckets, no greater than MAX(apr_size_t), and more granular
+ * multiple buckets, no greater than MAX(apr_size_t), and more granular
  * than that in case the brigade code/filters attempt to read it directly.
  * ### 16mb is an invention, no idea if it is reasonable.
  */
@@ -350,7 +355,7 @@ extern "C" {
  * use by modules.  The difference between #AP_DECLARE and
  * #AP_DECLARE_NONSTD is that the latter is required for any functions
  * which use varargs or are used via indirect function call.  This
- * is to accomodate the two calling conventions in windows dlls.
+ * is to accommodate the two calling conventions in windows dlls.
  */
 # define AP_DECLARE_NONSTD(type)    type
 #endif
@@ -477,7 +482,7 @@ AP_DECLARE(const char *) ap_get_server_built(void);
  * When adding a new code here add it to status_lines as well.
  * A future version should dynamically generate the apr_table_t at startup.
  */
-#define RESPONSE_CODES 83
+#define RESPONSE_CODES 103
 
 #define HTTP_CONTINUE                        100
 #define HTTP_SWITCHING_PROTOCOLS             101
@@ -527,6 +532,7 @@ AP_DECLARE(const char *) ap_get_server_built(void);
 #define HTTP_PRECONDITION_REQUIRED           428
 #define HTTP_TOO_MANY_REQUESTS               429
 #define HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE 431
+#define HTTP_UNAVAILABLE_FOR_LEGAL_REASONS   451
 #define HTTP_INTERNAL_SERVER_ERROR           500
 #define HTTP_NOT_IMPLEMENTED                 501
 #define HTTP_BAD_GATEWAY                     502
@@ -564,6 +570,10 @@ AP_DECLARE(const char *) ap_get_server_built(void);
                                     ((x) == HTTP_INTERNAL_SERVER_ERROR) || \
                                     ((x) == HTTP_SERVICE_UNAVAILABLE) || \
                                     ((x) == HTTP_NOT_IMPLEMENTED))
+
+/** does the status imply header only response (i.e. never w/ a body)? */
+#define AP_STATUS_IS_HEADER_ONLY(x) ((x) == HTTP_NO_CONTENT || \
+                                     (x) == HTTP_NOT_MODIFIED)
 /** @} */
 
 /**
@@ -606,9 +616,15 @@ AP_DECLARE(const char *) ap_get_server_built(void);
 #define M_MKACTIVITY            23
 #define M_BASELINE_CONTROL      24
 #define M_MERGE                 25
-#define M_INVALID               26      /** no valid method */
-#define M_BREW                  27      /** RFC 2324: HTCPCP/1.0 */
-#define M_WHEN                  28      /** RFC 2324: HTCPCP/1.0 */
+/* Additional methods must be registered by the implementor, we have only
+ * room for 64 bit-wise methods available, so do not squander them (more of
+ * the above methods should probably move here)
+ */
+/* #define M_BREW                  nn */     /** RFC 2324: HTCPCP/1.0 */
+/* #define M_WHEN                  nn */     /** RFC 2324: HTCPCP/1.0 */
+#define M_INVALID               26      /** invalid method value terminates the
+                                         *  listed ap_method_registry_init()
+                                         */
 
 /**
  * METHODS needs to be equal to the number of bits
@@ -678,6 +694,7 @@ struct ap_method_list_t {
 #endif /* APR_CHARSET_EBCDIC */
 /** Useful for common code with either platform charset. */
 #define CRLF_ASCII "\015\012"
+#define ZERO_ASCII "\060"
 
 /**
  * @defgroup values_request_rec_body Possible values for request_rec.read_body
@@ -821,7 +838,7 @@ struct request_rec {
     /** Protocol version number of protocol; 1.1 = 1001 */
     int proto_num;
     /** Protocol string, as given to us, or HTTP/0.9 */
-    char *protocol;
+    const char *protocol;
     /** Host, as set by full URI or Host: header.
      *  For literal IPv6 addresses, this does NOT include the surrounding [ ]
      */
@@ -1051,6 +1068,21 @@ struct request_rec {
     apr_table_t *trailers_in;
     /** MIME trailer environment from the response */
     apr_table_t *trailers_out;
+
+    /** Originator's DNS name, if known.  NULL if DNS hasn't been checked,
+     *  "" if it has and no address was found.  N.B. Only access this though
+     *  ap_get_useragent_host() */
+    char *useragent_host;
+    /** have we done double-reverse DNS? -1 yes/failure, 0 not yet,
+     *  1 yes/success
+     *  TODO: 2 bit signed bitfield when this structure is compacted
+     */
+    int double_reverse;
+    /** Mark the request as potentially tainted.  This might become a
+     *  bitfield if we identify different taints to be flagged.
+     *  Always use ap_request_tainted() to check taint.
+     */
+    int taint;
 };
 
 /**
@@ -1108,6 +1140,7 @@ struct conn_rec {
     char *remote_host;
     /** Only ever set if doing rfc1413 lookups.  N.B. Only access this through
      *  get_remote_logname() */
+    /* TODO: Remove from request_rec, make local to mod_ident */
     char *remote_logname;
 
     /** server IP address */
@@ -1134,10 +1167,6 @@ struct conn_rec {
     struct apr_bucket_alloc_t *bucket_alloc;
     /** The current state of this connection; may be NULL if not used by MPM */
     conn_state_t *cs;
-    /** Is there data pending in the input filters? */
-    int data_in_input_filters;
-    /** Is there data pending in the output filters? */
-    int data_in_output_filters;
 
     /** Are there any filters that clogg/buffer the input stream, breaking
      *  the event mpm.
@@ -1191,6 +1220,12 @@ struct conn_rec {
 
     /** Array of requests being handled under this connection. */
     apr_array_header_t *requests;
+
+    /** Ring of pending filters (with setaside buckets) */
+    struct ap_filter_ring *pending_filters;
+
+    /** The minimum level of filter type to allow setaside buckets */
+    int async_filter;
 };
 
 struct conn_slave_rec {
@@ -1210,7 +1245,9 @@ typedef enum  {
     CONN_STATE_SUSPENDED,
     CONN_STATE_LINGER,          /* connection may be closed with lingering */
     CONN_STATE_LINGER_NORMAL,   /* MPM has started lingering close with normal timeout */
-    CONN_STATE_LINGER_SHORT     /* MPM has started lingering close with short timeout */
+    CONN_STATE_LINGER_SHORT,    /* MPM has started lingering close with short timeout */
+
+    CONN_STATE_NUM              /* Number of states (keep/kept last) */
 } conn_state_e;
 
 typedef enum  {
@@ -1519,6 +1556,25 @@ AP_DECLARE(char *) ap_getword_conf(apr_pool_t *p, const char **line);
 AP_DECLARE(char *) ap_getword_conf_nc(apr_pool_t *p, char **line);
 
 /**
+ * Get the second word in the string paying attention to quoting,
+ * with {...} supported as well as "..." and '...'
+ * @param p The pool to allocate from
+ * @param line The line to traverse
+ * @return A copy of the string
+ */
+AP_DECLARE(char *) ap_getword_conf2(apr_pool_t *p, const char **line);
+
+/**
+ * Get the second word in the string paying attention to quoting,
+ * with {...} supported as well as "..." and '...'
+ * @param p The pool to allocate from
+ * @param line The line to traverse
+ * @return A copy of the string
+ * @note The same as ap_getword_conf2(), except it doesn't use const char **.
+ */
+AP_DECLARE(char *) ap_getword_conf2_nc(apr_pool_t *p, char **line);
+
+/**
  * Check a string for any config define or environment variable construct
  * and replace each of them by the value of that variable, if it exists.
  * The default syntax of the constructs is ${ENV} but can be changed by
@@ -1580,6 +1636,28 @@ AP_DECLARE(int) ap_find_etag_weak(apr_pool_t *p, const char *line, const char *t
  * @return 1 if found, 0 if not found.
  */
 AP_DECLARE(int) ap_find_etag_strong(apr_pool_t *p, const char *line, const char *tok);
+
+/* Scan a string for field content chars, as defined by RFC7230 section 3.2
+ * including VCHAR/obs-text, as well as HT and SP
+ * @param ptr The string to scan
+ * @return A pointer to the first (non-HT) ASCII ctrl character.
+ * @note lws and trailing whitespace are scanned, the caller is responsible
+ * for trimming leading and trailing whitespace
+ */
+AP_DECLARE(const char *) ap_scan_http_field_content(const char *ptr);
+
+/* Scan a string for token characters, as defined by RFC7230 section 3.2.6 
+ * @param ptr The string to scan
+ * @return A pointer to the first non-token character.
+ */
+AP_DECLARE(const char *) ap_scan_http_token(const char *ptr);
+
+/* Scan a string for visible ASCII (0x21-0x7E) or obstext (0x80+)
+ * and return a pointer to the first SP/CTL/NUL character encountered.
+ * @param ptr The string to scan
+ * @return A pointer to the first SP/CTL character.
+ */
+AP_DECLARE(const char *) ap_scan_vchar_obstext(const char *ptr);
 
 /**
  * Retrieve an array of tokens in the format "1#token" defined in RFC2616. Only
@@ -1871,7 +1949,7 @@ AP_DECLARE(int) ap_is_matchexp(const char *str)
                 AP_FN_ATTR_NONNULL_ALL;
 
 /**
- * Determine if a string matches a patterm containing the wildcards '?' or '*'
+ * Determine if a string matches a pattern containing the wildcards '?' or '*'
  * @param str The string to check
  * @param expected The pattern to match against
  * @return 0 if the two strings match, 1 otherwise
@@ -1880,7 +1958,7 @@ AP_DECLARE(int) ap_strcmp_match(const char *str, const char *expected)
                 AP_FN_ATTR_NONNULL_ALL;
 
 /**
- * Determine if a string matches a patterm containing the wildcards '?' or '*',
+ * Determine if a string matches a pattern containing the wildcards '?' or '*',
  * ignoring case
  * @param str The string to check
  * @param expected The pattern to match against
@@ -1917,6 +1995,28 @@ AP_DECLARE(const char *) ap_stripprefix(const char *bigstring,
  * @deprecated Replaced by apr_pbase64_decode() in APR.
  */
 AP_DECLARE(char *) ap_pbase64decode(apr_pool_t *p, const char *bufcoded);
+
+/**
+ * Decode a base64 encoded string into memory allocated from a pool, while
+ * ensuring that the input string is in fact valid base64.
+ *
+ * Unlike ap_pbase64decode(), this function allows encoded NULLs in the input to
+ * be retained by the caller, by inspecting the len argument after the call
+ * instead of using strlen(). A NULL terminator is still appended to the buffer
+ * to faciliate string use (it is not included in len).
+ *
+ * @param p The pool to allocate from
+ * @param encoded The encoded string
+ * @param decoded On success, set to the decoded buffer, which is allocated from
+ *                p
+ * @param len On success, set to the length of the decoded buffer (not including
+ *            the terminating NULL byte)
+ * @return APR_SUCCESS if the decoding was successful
+ */
+AP_DECLARE(apr_status_t) ap_pbase64decode_strict(apr_pool_t *p,
+                                                 const char *encoded,
+                                                 char **decoded,
+                                                 apr_size_t *len);
 
 /**
  * Encode a string into memory allocated from a pool in base 64 format
@@ -2051,7 +2151,7 @@ AP_DECLARE(char *) ap_append_pid(apr_pool_t *p, const char *string,
 /**
  * Parse a given timeout parameter string into an apr_interval_time_t value.
  * The unit of the time interval is given as postfix string to the numeric
- * string. Currently the following units are understood:
+ * string. Currently the following units are understood (case insensitive):
  *
  * ms    : milliseconds
  * s     : seconds
@@ -2078,6 +2178,30 @@ AP_DECLARE(apr_status_t) ap_timeout_parameter_parse(
  * @return truth value
  */
 AP_DECLARE(int) ap_request_has_body(request_rec *r);
+
+/** Request taint flags.  Only .htaccess defined. */
+#define AP_TAINT_HTACCESS 0x1
+/**
+ * Check whether a request is tainted by potentially-untrusted sources.
+ *
+ * @param r     the request
+ * @param flags Taint flags to check
+ * @return truth value
+ */
+AP_DECLARE(int) ap_request_tainted(request_rec *r, int flags);
+
+/**
+ * Reuse a brigade from a pool, or create it on the given pool/alloc and
+ * associate it with the given key for further reuse.
+ *
+ * @param key the key/id of the brigade
+ * @param pool the pool to cache and create the brigade from
+ * @param alloc the bucket allocator to be used by the brigade
+ * @return the reused and cleaned up brigade, or a new one
+ */
+AP_DECLARE(apr_bucket_brigade *) ap_reuse_brigade_from_pool(const char *key,
+                                                            apr_pool_t *pool,
+                                                    apr_bucket_alloc_t *alloc);
 
 /**
  * Cleanup a string (mainly to be filesystem safe)
@@ -2363,14 +2487,6 @@ AP_DECLARE(void) ap_bin2hex(const void *src, apr_size_t srclen, char *dest)
                  AP_FN_ATTR_NONNULL_ALL;
 
 /**
- * Check if string contains a control character
- * @param str the string to check
- * @return 1 if yes, 0 if no control characters
- */
-AP_DECLARE(int) ap_has_cntrl(const char *str)
-                AP_FN_ATTR_NONNULL_ALL;
-
-/**
  * Wrapper for @a apr_password_validate() to cache expensive calculations
  * @param r the current request
  * @param username username of the user
@@ -2403,12 +2519,54 @@ AP_DECLARE(char *) ap_get_exec_line(apr_pool_t *p,
 #define AP_NORESTART APR_OS_START_USEERR + 1
 
 /**
- * Get the index of the string in the array or -1 if not found.
- * @param array the array the check
- * @param s the string to find
+ * Get the first index of the string in the array or -1 if not found. Start
+ * searching a start. 
+ * @param array The array the check
+ * @param s The string to find
+ * @param start Start index for search. If start is out of bounds (negative or  
+                equal to array length or greater), -1 will be returned.
  * @return index of string in array or -1
  */
-AP_DECLARE(int) ap_array_index(const apr_array_header_t *array, const char *s);
+AP_DECLARE(int) ap_array_str_index(const apr_array_header_t *array, 
+                                   const char *s,
+                                   int start);
+
+/**
+ * Check if the string is member of the given array by strcmp.
+ * @param array The array the check
+ * @param s The string to find
+ * @return !=0 iff string is member of array (via strcmp)
+ */
+AP_DECLARE(int) ap_array_str_contains(const apr_array_header_t *array, 
+                                      const char *s);
+
+/**
+ * Perform a case-insensitive comparison of two strings @a str1 and @a str2,
+ * treating upper and lower case values of the 26 standard C/POSIX alphabetic
+ * characters as equivalent. Extended latin characters outside of this set
+ * are treated as unique octets, irrespective of the current locale.
+ *
+ * Returns in integer greater than, equal to, or less than 0,
+ * according to whether @a str1 is considered greater than, equal to,
+ * or less than @a str2.
+ *
+ * @note Same code as apr_cstr_casecmp, which arrives in APR 1.6
+ */
+AP_DECLARE(int) ap_cstr_casecmp(const char *s1, const char *s2);
+
+/**
+ * Perform a case-insensitive comparison of two strings @a str1 and @a str2,
+ * treating upper and lower case values of the 26 standard C/POSIX alphabetic
+ * characters as equivalent. Extended latin characters outside of this set
+ * are treated as unique octets, irrespective of the current locale.
+ *
+ * Returns in integer greater than, equal to, or less than 0,
+ * according to whether @a str1 is considered greater than, equal to,
+ * or less than @a str2.
+ *
+ * @note Same code as apr_cstr_casecmpn, which arrives in APR 1.6
+ */
+AP_DECLARE(int) ap_cstr_casecmpn(const char *s1, const char *s2, apr_size_t n);
 
 #ifdef __cplusplus
 }

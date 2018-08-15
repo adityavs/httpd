@@ -18,7 +18,7 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Developer</a></div><div id="page-content"><div id="preamble"><h1>Creating hooks and scripts with mod_lua</h1>
@@ -38,10 +38,10 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#loadbalancing">Example 5: A rudimentary load balancer</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#map_handler">Example 6: Overlays using LuaMapHandler</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#mod_status_lua">Example 6: Basic Lua scripts</a></li>
-</ul><h3>See also</h3><ul class="seealso"><li><a href="../mod/mod_lua.html">mod_lua</a></li><li><a href="modguide.html">Developing modules for Apache 2.4</a></li><li><a href="request.html">Request Processing in Apache 2.4</a></li><li><a href="hooks.html">Apache 2.x Hook Functions</a></li></ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+</ul><h3>See also</h3><ul class="seealso"><li><a href="../mod/mod_lua.html">mod_lua</a></li><li><a href="modguide.html">Developing modules for Apache 2.4</a></li><li><a href="request.html">Request Processing in Apache 2.4</a></li><li><a href="hooks.html">Apache 2.x Hook Functions</a></li><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="introduction" id="introduction">Introduction</a></h2>
+<h2><a name="introduction" id="introduction">Introduction</a><a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
 <h3><a name="what" id="what">What is mod_lua</a></h3>
 <p>
 Stuff about what <code class="module"><a href="../mod/mod_lua.html">mod_lua</a></code> is goes here.
@@ -70,7 +70,7 @@ and whys of various function calls.
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="enabling" id="enabling">Optimizing mod_lua for production servers</a></h2>
+<h2><a name="enabling" id="enabling">Optimizing mod_lua for production servers</a><a title="Permanent link" href="#enabling" class="permalink">&para;</a></h2>
 
 <h3>Setting a scope for Lua states</h3>
 <p>
@@ -81,7 +81,7 @@ that every call to a Lua script will spawn a new Lua state that handles that
 script and is destroyed immediately after. This option keeps the memory
 footprint of mod_lua low, but also affects the processing speed of a request.
 If you have the memory to spare, you can set the scope to <code>thread</code>,
-which will make mod_lua spawn a Lua state that lasts the entirity of a thread's
+which will make mod_lua spawn a Lua state that lasts the entirety of a thread's
 lifetime, speeding up request processing by 2-3 times. Since mod_lua will create
 a state for each script, this may be an expensive move, memory-wise, so to
 compromise between speed and memory usage, you can choose the <code>server</code>
@@ -151,7 +151,7 @@ end</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="basic_remap" id="basic_remap">Example 1: A basic remapping module</a></h2>
+<h2><a name="basic_remap" id="basic_remap">Example 1: A basic remapping module</a><a title="Permanent link" href="#basic_remap" class="permalink">&para;</a></h2>
 <p>
     These first examples show how mod_lua can be used to rewrite URIs in the same
     way that one could do using <code class="directive"><a href="../mod/mod_alias.html#alias">Alias</a></code> or
@@ -217,7 +217,7 @@ function remap(r)
     -- browse through the rewrite map
     for key, entry in pairs(map) do
         -- Match source regex against URI
-        local match = apache2.regex(r, entry.source, r.uri) then
+        local match = r:regex(entry.source, r.uri) then
         if match and match[0] then
             r.filename = interpolateString(entry.destination, match)
             -- Is this a proxied remap?
@@ -239,7 +239,7 @@ bla bla
 </p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="mass_vhost" id="mass_vhost">Example 2: Mass virtual hosting</a></h2>
+<h2><a name="mass_vhost" id="mass_vhost">Example 2: Mass virtual hosting</a><a title="Permanent link" href="#mass_vhost" class="permalink">&para;</a></h2>
 <p>
     As with simple and advanced rewriting, you can use mod_lua for dynamically
     assigning a hostname to a specific document root, much like
@@ -336,7 +336,7 @@ end</pre>
 </p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="basic_auth" id="basic_auth">Example 3: A basic authorization hook</a></h2>
+<h2><a name="basic_auth" id="basic_auth">Example 3: A basic authorization hook</a><a title="Permanent link" href="#basic_auth" class="permalink">&para;</a></h2>
 <p>
     With the authorization hooks, you can add custom auth phases to your request
     processing, allowing you to either add new requirements that were not previously
@@ -450,7 +450,7 @@ end</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="authz" id="authz">Example 4: Authorization using LuaAuthzProvider</a></h2>
+<h2><a name="authz" id="authz">Example 4: Authorization using LuaAuthzProvider</a><a title="Permanent link" href="#authz" class="permalink">&para;</a></h2>
 <p>
     If you require even more advanced control over your authorization phases,
     you can add custom authz providers to help you manage your server. The
@@ -468,7 +468,7 @@ end</pre>
 
 <pre class="prettyprint lang-lua">--[[
      This script has two user groups; members and admins, and whichever
-     is refered to by the "Require rights" directive is checked to see
+     is referred to by the "Require rights" directive is checked to see
      if the authenticated user belongs to this group.
 ]]--
 
@@ -497,7 +497,7 @@ end</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="loadbalancing" id="loadbalancing">Example 5: A rudimentary load balancer</a></h2>
+<h2><a name="loadbalancing" id="loadbalancing">Example 5: A rudimentary load balancer</a><a title="Permanent link" href="#loadbalancing" class="permalink">&para;</a></h2>
 <p>
     This is an example of how you can create a load balancing mechanism.
     In this example, we will be setting/getting the number of requests served
@@ -548,7 +548,7 @@ end</pre>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="map_handler" id="map_handler">Example 6: Overlays using LuaMapHandler</a></h2>
+<h2><a name="map_handler" id="map_handler">Example 6: Overlays using LuaMapHandler</a><a title="Permanent link" href="#map_handler" class="permalink">&para;</a></h2>
 <p>
 Coming soon!
 </p>
@@ -556,7 +556,7 @@ Coming soon!
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="mod_status_lua" id="mod_status_lua">Example 6: Basic Lua scripts</a></h2>
+<h2><a name="mod_status_lua" id="mod_status_lua">Example 6: Basic Lua scripts</a><a title="Permanent link" href="#mod_status_lua" class="permalink">&para;</a></h2>
 <p>
 Also coming soon
 </p>
@@ -581,7 +581,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/developer/lua.html
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

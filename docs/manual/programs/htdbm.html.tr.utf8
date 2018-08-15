@@ -18,7 +18,7 @@
 <body id="manual-page"><div id="page-header">
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p>
 <p class="apache">Apache HTTP Sunucusu Sürüm 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Sunucusu</a> &gt; <a href="http://httpd.apache.org/docs/">Belgeleme</a> &gt; <a href="../">Sürüm 2.5</a> &gt; <a href="./">Programlar</a></div><div id="page-content"><div id="preamble"><h1>htdbm - DBM parola veritabanlarını yönetir</h1>
@@ -42,10 +42,10 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#examples">Örnekler</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#security">Güvenlik Değerlendirmeleri</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#restrictions">Kısıtlamalar</a></li>
-</ul><h3>Ayrıca bakınız:</h3><ul class="seealso"><li><code class="program"><a href="../programs/httpd.html">httpd</a></code></li><li><code class="program"><a href="../programs/dbmmanage.html">dbmmanage</a></code></li><li><code class="module"><a href="../mod/mod_authn_dbm.html">mod_authn_dbm</a></code></li></ul><ul class="seealso"><li><a href="#comments_section">Yorum</a></li></ul></div>
+</ul><h3>Ayrıca bakınız:</h3><ul class="seealso"><li><code class="program"><a href="../programs/httpd.html">httpd</a></code></li><li><code class="program"><a href="../programs/dbmmanage.html">dbmmanage</a></code></li><li><code class="module"><a href="../mod/mod_authn_dbm.html">mod_authn_dbm</a></code></li><li><a href="#comments_section">Yorum</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="synopsis" id="synopsis">Kullanım</a></h2>
+<h2><a name="synopsis" id="synopsis">Kullanım</a><a title="Permanent link" href="#synopsis" class="permalink">&para;</a></h2>
     <p><code><strong>htdbm</strong>
     [ -<strong>T</strong><var>VTtürü</var> ]
     [ -<strong>c</strong> ]
@@ -124,7 +124,7 @@
     </code></p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="options" id="options">Seçenekler</a></h2>
+<h2><a name="options" id="options">Seçenekler</a><a title="Permanent link" href="#options" class="permalink">&para;</a></h2>
     <dl>
     <dt><code><strong>-b</strong></code></dt>
     <dd>Betik kipi; parola için istek yapmak yerine parola komut satırından
@@ -204,7 +204,7 @@
     </dl>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="bugs" id="bugs">Hatalar</a></h2>
+<h2><a name="bugs" id="bugs">Hatalar</a><a title="Permanent link" href="#bugs" class="permalink">&para;</a></h2>
     <p>Birden fazla DBM dosya biçemi vardır ve büyük bir olasılıkla da
     sisteminizde bu birden fazla biçemle ilgili kütüphaneler vardır. SDBM,
     NDBM, GNU'nun GDBM projesi ve Berkeley/Sleepycat DB 2/3/4 bunların
@@ -222,7 +222,7 @@
     <code><strong>file</strong></code> programı kullanılabilir.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="exit" id="exit">Çıkış Durumu</a></h2>
+<h2><a name="exit" id="exit">Çıkış Durumu</a><a title="Permanent link" href="#exit" class="permalink">&para;</a></h2>
     <p><code><strong>htdbm</strong></code>, kullanıcı ismi ve parolasını DBM
     dosyasına başarıyla eklemiş veya güncellemişse <code>0</code>, dosyalara
     erişirken bir sorun çıkmışsa <code>1</code>, komut satırında bir
@@ -235,7 +235,7 @@
     <code>7</code> değeriyle döner.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="examples" id="examples">Örnekler</a></h2>
+<h2><a name="examples" id="examples">Örnekler</a><a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
     <div class="example"><p><code>
       htdbm /usr/local/etc/apache/.htdbm-users jsmith
     </code></p></div>
@@ -265,7 +265,7 @@
     algoritmasıyla şifreler ve bunu belirtilen dosyada saklar.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Güvenlik Değerlendirmeleri</a></h2>
+<h2><a name="security" id="security">Güvenlik Değerlendirmeleri</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
     <p><code><strong>htdbm</strong></code> tarafından yönetilen parola
     dosyalarına sunucunun URI uzayından erişilememelidir; yani dosya bir
     tarayıcı ile okunabilecek bir yerde bulunmamalıdır.</p>
@@ -275,7 +275,7 @@
     öneriyoruz.</p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="restrictions" id="restrictions">Kısıtlamalar</a></h2>
+<h2><a name="restrictions" id="restrictions">Kısıtlamalar</a><a title="Permanent link" href="#restrictions" class="permalink">&para;</a></h2>
     <p>Windows platformunda, <code><strong>htdbm</strong></code>
     ile şifrelenen parolalar <code>255</code> karakterden daha uzun olamaz.
     255 karakterden sonrası kırpılır.</p>
@@ -308,7 +308,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/programs/htdbm.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

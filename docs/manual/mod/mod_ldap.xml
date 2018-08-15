@@ -340,7 +340,7 @@ LDAPTrustedGlobalCert KEY_BASE64 /certs/key1.pem [password]
         <p>Both CA and client certificates may be specified globally
         (LDAPTrustedGlobalCert) or per-connection (LDAPTrustedClientCert).
         When any settings are specified per-connection, the global
-        settings are superceded.</p>
+        settings are superseded.</p>
 
         <p>The documentation for the SDK claims to support both SSL and
         STARTTLS, however STARTTLS does not seem to work on all versions
@@ -623,6 +623,7 @@ connection client certificate. Not all LDAP toolkits support per
 connection client certificates.</description>
 <syntax>LDAPTrustedClientCert <var>type</var> <var>directory-path/filename/nickname</var> <var>[password]</var></syntax>
 <contextlist><context>directory</context><context>.htaccess</context></contextlist>
+<override>AuthConfig</override>
 
 <usage>
     <p>It specifies the directory path, file name or nickname of a

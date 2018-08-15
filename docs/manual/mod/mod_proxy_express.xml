@@ -38,7 +38,7 @@
     than <module>mod_proxy_balancer</module>, which also provides
     dynamic growth, but is intended to handle much, much
     larger numbers of backends. It is ideally suited as a
-    front-end HTTP switch.</p>
+    front-end HTTP switch and for micro-services architectures.</p>
 
     <p>This module <em>requires</em> the service of <module
     >mod_proxy</module>.</p>
@@ -77,6 +77,10 @@
 
 </summary>
 <seealso><module>mod_proxy</module></seealso>
+<seealso><directive module="mod_proxy">BalancerMember</directive></seealso>
+<seealso><directive module="mod_proxy">BalancerGrowth</directive></seealso>
+<seealso><directive module="mod_proxy">BalancerPersist</directive></seealso>
+<seealso><directive module="mod_proxy">BalancerInherit</directive></seealso>
 
 <directivesynopsis>
 <name>ProxyExpressEnable</name>
@@ -85,6 +89,7 @@
 <default>off</default>
 <contextlist><context>server config</context><context>virtual host</context>
   </contextlist>
+<override>FileInfo</override>
 <compatibility>Available in Apache 2.3.13 and later</compatibility>
 
 <usage>
@@ -100,6 +105,7 @@
 <default>None</default>
 <contextlist><context>server config</context><context>virtual host</context>
   </contextlist>
+<override>FileInfo</override>
 <compatibility>Available in Apache 2.3.13 and later</compatibility>
 
 <usage>
@@ -142,6 +148,7 @@
 <default>"default"</default>
 <contextlist><context>server config</context><context>virtual host</context>
   </contextlist>
+<override>FileInfo</override>
 <compatibility>Available in Apache 2.3.13 and later</compatibility>
 
 <usage>

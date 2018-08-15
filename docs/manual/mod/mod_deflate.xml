@@ -37,6 +37,14 @@ client</description>
 </summary>
 <seealso><a href="../filter.html">Filters</a></seealso>
 
+<section id="supportedencodings"><title>Supported Encodings</title>
+  <p>The <code>gzip</code> encoding is the only one supported to ensure complete compatibility
+  with old browser implementations. The <code>deflate</code> encoding is not supported, 
+  please check the <a href="http://www.gzip.org/zlib/zlib_faq.html#faq38">zlib's documentation</a>
+  for a complete explanation.
+  </p>
+</section>
+
 <section id="recommended"><title>Sample Configurations</title>
     <note type="warning"><title>Compression and TLS</title>
         <p>Some web applications are vulnerable to an information disclosure
@@ -189,18 +197,11 @@ content</title>
 
     <highlight language="config">
 &lt;IfModule mod_headers.c&gt;
-    # Serve gzip compressed CSS files if they exist
+    # Serve gzip compressed CSS and JS files if they exist
     # and the client accepts gzip.
     RewriteCond "%{HTTP:Accept-encoding}" "gzip"
     RewriteCond "%{REQUEST_FILENAME}\.gz" "-s"
-    RewriteRule "^(.*)\.css"              "$1\.css\.gz" [QSA]
-
-    # Serve gzip compressed JS files if they exist
-    # and the client accepts gzip.
-    RewriteCond "%{HTTP:Accept-encoding}" "gzip"
-    RewriteCond "%{REQUEST_FILENAME}\.gz" "-s"
-    RewriteRule "^(.*)\.js"               "$1\.js\.gz" [QSA]
-
+    RewriteRule "^(.*)\.(css|js)"         "$1\.$2\.gz" [QSA]
 
     # Serve correct content types, and prevent mod_deflate double gzip.
     RewriteRule "\.css\.gz$" "-" [T=text/css,E=no-gzip:1]
@@ -288,7 +289,14 @@ CustomLog "logs/deflate_log" deflate
 <usage>
     <p>The <directive>DeflateBufferSize</directive> directive specifies
     the size in bytes of the fragments that zlib should compress at one
-    time.</p>
+    time. If the compressed response size is bigger than the one specified
+    by this directive then httpd will switch to chunked encoding 
+    (HTTP header <code>Transfer-Encoding</code> set to <code>Chunked</code>), with the
+    side effect of not setting any <code>Content-Length</code> HTTP header. This is particularly 
+    important when httpd works behind reverse caching proxies or when httpd is configured with 
+    <module>mod_cache</module> and <module>mod_cache_disk</module> because
+    HTTP responses without any <code>Content-Length</code> header might not be cached.
+  </p>
 </usage>
 </directivesynopsis>
 
@@ -377,6 +385,7 @@ CustomLog "logs/deflate_log" deflate
 <default>None, but LimitRequestBody applies after deflation</default>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context></contextlist>
+<override>All</override>
 <compatibility>2.4.10 and later</compatibility>
 
 <usage>
@@ -394,6 +403,7 @@ CustomLog "logs/deflate_log" deflate
 <default>200</default>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context></contextlist>
+<override>All</override>
 <compatibility>2.4.10 and later</compatibility>
 
 <usage>
@@ -414,6 +424,7 @@ CustomLog "logs/deflate_log" deflate
 <default>3</default>
 <contextlist><context>server config</context><context>virtual host</context>
 <context>directory</context><context>.htaccess</context></contextlist>
+<override>All</override>
 <compatibility>2.4.10 and later</compatibility>
 
 <usage>

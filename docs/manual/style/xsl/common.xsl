@@ -18,8 +18,9 @@
 -->
 
 <!DOCTYPE xsl:stylesheet [
-    <!ENTITY nbsp SYSTEM "util/nbsp.xml">
     <!ENTITY lf SYSTEM "util/lf.xml">
+    <!ENTITY nbsp SYSTEM "util/nbsp.xml">
+    <!ENTITY para SYSTEM "util/para.xml">
     <!ENTITY % HTTPD-VERSION SYSTEM "../version.ent">
     %HTTPD-VERSION;
 ]>
@@ -64,6 +65,7 @@
 <xsl:include href="indexpage.xsl" />
 <xsl:include href="quickreference.xsl" />
 <xsl:include href="faq.xsl" />
+<xsl:include href="overrideindex.xsl" />
 
 <!-- load utility snippets -->
 <xsl:include href="util/modtrans.xsl" />
@@ -206,7 +208,7 @@
                                               [@id='apachehttpserver'])"/>
     </p>&lf;
 
-    <img src="{$path}/images/feather.gif" alt="" />
+    <img src="{$path}/images/feather.png" alt="" />
 </div>&lf; <!-- /page-header -->
 
 <div class="up">
@@ -417,7 +419,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/]]></xsl:text>&httpd.com
 </xsl:choose>
 <div id="footer">&lf;
     <p class="apache">
-        <xsl:text>Copyright 2015 The Apache Software Foundation.</xsl:text><br />
+        <xsl:text>Copyright 2018 The Apache Software Foundation.</xsl:text><br />
         <xsl:if test="normalize-space($message[@id='before-license'])">
             <xsl:value-of select="$message[@id='before-license']"/>
             <xsl:text> </xsl:text>
@@ -521,6 +523,7 @@ if (typeof(prettyPrint) !== 'undefined') {
           <a id="{@id}" name="{@id}">
               <xsl:apply-templates select="title" mode="print" />
           </a>
+          <a class="permalink" href="#{@id}" title="{$message[@id='permalink']}">&para;</a>
         </xsl:when>
 
         <xsl:otherwise>
@@ -886,12 +889,12 @@ if (typeof(prettyPrint) !== 'undefined') {
         <xsl:variable name="lowerdirective">
             <xsl:choose>
             <xsl:when test="@name">
-                <xsl:value-of select="normalize-space(translate(@name,
-                                        $uppercase, $lowercase))" />
+                <xsl:value-of select="normalize-space(concat(translate(@name,
+                                        $uppercase, $lowercase),@idtype))" />
             </xsl:when>
             <xsl:otherwise>
-                <xsl:value-of select="normalize-space(translate(.,
-                                        $uppercase, $lowercase))" />
+                <xsl:value-of select="normalize-space(concat(translate(.,
+                                        $uppercase, $lowercase),@idtype))" />
             </xsl:otherwise>
             </xsl:choose>
         </xsl:variable>

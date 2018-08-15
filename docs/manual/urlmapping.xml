@@ -269,9 +269,9 @@ and returns them to the client as if they were from the local
 server.</p>
 
 <highlight language="config">
-ProxyPass        "/foo/" "http://internal.example.com/bar/"<br />
-ProxyPassReverse "/foo/" "http://internal.example.com/bar/"<br />
-ProxyPassReverseCookieDomain internal.example.com public.example.com<br />
+ProxyPass        "/foo/" "http://internal.example.com/bar/"
+ProxyPassReverse "/foo/" "http://internal.example.com/bar/"
+ProxyPassReverseCookieDomain internal.example.com public.example.com
 ProxyPassReverseCookiePath "/foo/" "/bar/"
 </highlight>
 
@@ -351,7 +351,7 @@ proxying scenarios can be handled.</p>
     <p><module>mod_dir</module> provides <directive module="mod_dir"
     >FallbackResource</directive>, which can be used to map virtual
     URIs to a real resource, which then serves them. This is a very
-    useful replacement to <module>mod_rewrite</module> when implementing
+    useful replacement for <module>mod_rewrite</module> when implementing
     a 'front controller'</p>
 
     <p>If all attempts to locate the content fail, httpd returns

@@ -1,11 +1,12 @@
-/* Copyright 2015 greenbytes GmbH (https://www.greenbytes.de)
+/* Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * http://www.apache.org/licenses/LICENSE-2.0
- 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,7 +19,7 @@
 
 /**
  * The stream multiplexer. It pushes buckets from the connection
- * thread to the stream task threads and vice versa. It's thread-safe
+ * thread to the stream threads and vice versa. It's thread-safe
  * to use.
  *
  * There is one h2_mplx instance for each h2_session, which sits on top
@@ -37,65 +38,83 @@
 struct apr_pool_t;
 struct apr_thread_mutex_t;
 struct apr_thread_cond_t;
+struct h2_bucket_beam;
 struct h2_config;
-struct h2_response;
+struct h2_ihash_t;
 struct h2_task;
 struct h2_stream;
-struct h2_io_set;
+struct h2_request;
 struct apr_thread_cond_t;
 struct h2_workers;
-struct h2_stream_set;
-struct h2_task_queue;
+struct h2_iqueue;
+struct h2_ngn_shed;
+struct h2_req_engine;
 
-#include "h2_io.h"
+#include <apr_queue.h>
 
 typedef struct h2_mplx h2_mplx;
 
 struct h2_mplx {
     long id;
-    APR_RING_ENTRY(h2_mplx) link;
-    volatile apr_uint32_t refs;
     conn_rec *c;
     apr_pool_t *pool;
-    apr_bucket_alloc_t *bucket_alloc;
+    server_rec *s;                  /* server for master conn */
 
-    struct h2_task_queue *q;
-    struct h2_io_set *stream_ios;
-    struct h2_io_set *ready_ios;
+    unsigned int event_pending;
+    unsigned int aborted;
+    unsigned int is_registered;     /* is registered at h2_workers */
+
+    struct h2_ihash_t *streams;     /* all streams currently processing */
+    struct h2_ihash_t *sredo;       /* all streams that need to be re-started */
+    struct h2_ihash_t *shold;       /* all streams done with task ongoing */
+    struct h2_ihash_t *spurge;      /* all streams done, ready for destroy */
     
+    struct h2_iqueue *q;            /* all stream ids that need to be started */
+    struct h2_ififo *readyq;        /* all stream ids ready for output */
+        
+    struct h2_ihash_t *redo_tasks;  /* all tasks that need to be redone */
+    
+    int max_streams;        /* max # of concurrent streams */
+    int max_stream_started; /* highest stream id that started processing */
+    int tasks_active;       /* # of tasks being processed from this mplx */
+    int limit_active;       /* current limit on active tasks, dynamic */
+    int max_active;         /* max, hard limit # of active tasks in a process */
+    apr_time_t last_idle_block;      /* last time, this mplx entered IDLE while
+                                      * streams were ready */
+    apr_time_t last_limit_change;    /* last time, worker limit changed */
+    apr_interval_time_t limit_change_interval;
+
     apr_thread_mutex_t *lock;
     struct apr_thread_cond_t *added_output;
+    struct apr_thread_cond_t *task_thawed;
     struct apr_thread_cond_t *join_wait;
     
-    int aborted;
     apr_size_t stream_max_mem;
     
-    apr_pool_t *spare_pool;           /* spare pool, ready for next stream */
-    struct h2_stream_set *closed;     /* streams closed, but task ongoing */
+    apr_pool_t *spare_io_pool;
+    apr_array_header_t *spare_slaves; /* spare slave connections */
+    
     struct h2_workers *workers;
-    int file_handles_allowed;
+    
+    struct h2_ngn_shed *ngn_shed;
 };
+
+
 
 /*******************************************************************************
  * Object lifecycle and information.
  ******************************************************************************/
+
+apr_status_t h2_mplx_child_init(apr_pool_t *pool, server_rec *s);
 
 /**
  * Create the multiplexer for the given HTTP2 session. 
  * Implicitly has reference count 1.
  */
 h2_mplx *h2_mplx_create(conn_rec *c, apr_pool_t *master, 
+                        const struct h2_config *conf, 
                         struct h2_workers *workers);
 
-/**
- * Increase the reference counter of this mplx.
- */
-void h2_mplx_reference(h2_mplx *m);
-
-/**
- * Decreases the reference counter of this mplx.
- */
-void h2_mplx_release(h2_mplx *m);
 /**
  * Decreases the reference counter of this mplx and waits for it
  * to reached 0, destroy the mplx afterwards.
@@ -104,32 +123,35 @@ void h2_mplx_release(h2_mplx *m);
  * @param m the mplx to be released and destroyed
  * @param wait condition var to wait on for ref counter == 0
  */ 
-apr_status_t h2_mplx_release_and_join(h2_mplx *m, struct apr_thread_cond_t *wait);
+void h2_mplx_release_and_join(h2_mplx *m, struct apr_thread_cond_t *wait);
+
+apr_status_t h2_mplx_pop_task(h2_mplx *m, struct h2_task **ptask);
+
+void h2_mplx_task_done(h2_mplx *m, struct h2_task *task, struct h2_task **ptask);
 
 /**
- * Aborts the multiplexer. It will answer all future invocation with
- * APR_ECONNABORTED, leading to early termination of ongoing tasks.
+ * Shut down the multiplexer gracefully. Will no longer schedule new streams
+ * but let the ongoing ones finish normally.
+ * @return the highest stream id being/been processed
  */
-void h2_mplx_abort(h2_mplx *mplx);
+int h2_mplx_shutdown(h2_mplx *m);
 
-void h2_mplx_task_done(h2_mplx *m, int stream_id);
+int h2_mplx_is_busy(h2_mplx *m);
 
 /*******************************************************************************
  * IO lifetime of streams.
  ******************************************************************************/
-/**
- * Prepares the multiplexer to handle in-/output on the given stream id.
- */
-struct h2_stream *h2_mplx_open_io(h2_mplx *mplx, int stream_id);
+
+struct h2_stream *h2_mplx_stream_get(h2_mplx *m, int id);
 
 /**
- * Ends cleanup of a stream in sync with execution thread.
+ * Notifies mplx that a stream has been completely handled on the main
+ * connection and is ready for cleanup.
+ * 
+ * @param m the mplx itself
+ * @param stream the stream ready for cleanup
  */
-apr_status_t h2_mplx_cleanup_stream(h2_mplx *m, struct h2_stream *stream);
-
-/* Return != 0 iff the multiplexer has data for the given stream. 
- */
-int h2_mplx_out_has_data_for(h2_mplx *m, int stream_id);
+apr_status_t h2_mplx_stream_cleanup(h2_mplx *m, struct h2_stream *stream);
 
 /**
  * Waits on output data from any stream in this session to become available. 
@@ -138,114 +160,66 @@ int h2_mplx_out_has_data_for(h2_mplx *m, int stream_id);
 apr_status_t h2_mplx_out_trywait(h2_mplx *m, apr_interval_time_t timeout,
                                  struct apr_thread_cond_t *iowait);
 
+apr_status_t h2_mplx_keep_active(h2_mplx *m, struct h2_stream *stream);
+
 /*******************************************************************************
  * Stream processing.
  ******************************************************************************/
 
 /**
- * Perform the task on the given stream.
+ * Process a stream request.
+ * 
+ * @param m the multiplexer
+ * @param stream the identifier of the stream
+ * @param r the request to be processed
+ * @param cmp the stream priority compare function
+ * @param ctx context data for the compare function
  */
-apr_status_t h2_mplx_do_task(h2_mplx *mplx, struct h2_task *task);
-
-struct h2_task *h2_mplx_pop_task(h2_mplx *mplx, int *has_more);
-
-apr_status_t h2_mplx_create_task(h2_mplx *mplx, struct h2_stream *stream);
-
-/*******************************************************************************
- * Input handling of streams.
- ******************************************************************************/
+apr_status_t h2_mplx_process(h2_mplx *m, struct h2_stream *stream, 
+                             h2_stream_pri_cmp *cmp, void *ctx);
 
 /**
- * Reads a buckets for the given stream_id. Will return ARP_EAGAIN when
- * called with APR_NONBLOCK_READ and no data present. Will return APR_EOF
- * when the end of the stream input has been reached.
- * The condition passed in will be used for blocking/signalling and will
- * be protected by the mplx's own mutex.
+ * Stream priorities have changed, reschedule pending requests.
+ * 
+ * @param m the multiplexer
+ * @param cmp the stream priority compare function
+ * @param ctx context data for the compare function
  */
-apr_status_t h2_mplx_in_read(h2_mplx *m, apr_read_type_e block,
-                             int stream_id, apr_bucket_brigade *bb,
-                             struct apr_thread_cond_t *iowait);
+apr_status_t h2_mplx_reprioritize(h2_mplx *m, h2_stream_pri_cmp *cmp, void *ctx);
+
+typedef apr_status_t stream_ev_callback(void *ctx, struct h2_stream *stream);
 
 /**
- * Appends data to the input of the given stream. Storage of input data is
- * not subject to flow control.
+ * Check if the multiplexer has events for the master connection pending.
+ * @return != 0 iff there are events pending
  */
-apr_status_t h2_mplx_in_write(h2_mplx *mplx, int stream_id, 
-                              apr_bucket_brigade *bb);
+int h2_mplx_has_master_events(h2_mplx *m);
 
 /**
- * Closes the input for the given stream_id.
+ * Dispatch events for the master connection, such as
+ ± @param m the multiplexer
+ * @param on_resume new output data has arrived for a suspended stream 
+ * @param ctx user supplied argument to invocation.
  */
-apr_status_t h2_mplx_in_close(h2_mplx *m, int stream_id);
+apr_status_t h2_mplx_dispatch_master_events(h2_mplx *m, 
+                                            stream_ev_callback *on_resume, 
+                                            void *ctx);
 
-/**
- * Returns != 0 iff the input for the given stream has been closed. There
- * could still be data queued, but it can be read without blocking.
- */
-int h2_mplx_in_has_eos_for(h2_mplx *m, int stream_id);
+int h2_mplx_awaits_data(h2_mplx *m);
 
-/**
- * Callback invoked for every stream that had input data read since
- * the last invocation.
- */
-typedef void h2_mplx_consumed_cb(void *ctx, int stream_id, apr_size_t consumed);
+typedef int h2_mplx_stream_cb(struct h2_stream *s, void *ctx);
 
-/**
- * Invoke the callback for all streams that had bytes read since the last
- * call to this function. If no stream had input data consumed, the callback
- * is not invoked.
- * Returns APR_SUCCESS when an update happened, APR_EAGAIN if no update
- * happened.
- */
-apr_status_t h2_mplx_in_update_windows(h2_mplx *m, 
-                                       h2_mplx_consumed_cb *cb, void *ctx);
+apr_status_t h2_mplx_stream_do(h2_mplx *m, h2_mplx_stream_cb *cb, void *ctx);
 
 /*******************************************************************************
  * Output handling of streams.
  ******************************************************************************/
 
 /**
- * Get a stream whose response is ready for submit. Will set response and
- * any out data available in stream. 
- * @param m the mplxer to get a response from
- * @param bb the brigade to place any existing repsonse body data into
- */
-struct h2_stream *h2_mplx_next_submit(h2_mplx *m, 
-                                      struct h2_stream_set *streams);
-
-/**
- * Reads output data from the given stream. Will never block, but
- * return APR_EAGAIN until data arrives or the stream is closed.
- */
-apr_status_t h2_mplx_out_readx(h2_mplx *mplx, int stream_id, 
-                               h2_io_data_cb *cb, void *ctx, 
-                               apr_size_t *plen, int *peos);
-
-/**
  * Opens the output for the given stream with the specified response.
  */
 apr_status_t h2_mplx_out_open(h2_mplx *mplx, int stream_id,
-                              struct h2_response *response,
-                              ap_filter_t* filter, apr_bucket_brigade *bb,
-                              struct apr_thread_cond_t *iowait);
-
-/**
- * Append the brigade to the stream output. Might block if amount
- * of bytes buffered reaches configured max.
- * @param stream_id the stream identifier
- * @param filter the apache filter context of the data
- * @param bb the bucket brigade to append
- * @param iowait a conditional used for block/signalling in h2_mplx
- */
-apr_status_t h2_mplx_out_write(h2_mplx *mplx, int stream_id, 
-                               ap_filter_t* filter, apr_bucket_brigade *bb,
-                               struct apr_thread_cond_t *iowait);
-
-/**
- * Closes the output stream. Readers of this stream will get all pending 
- * data and then only APR_EOF as result. 
- */
-apr_status_t h2_mplx_out_close(h2_mplx *m, int stream_id);
+                              struct h2_bucket_beam *beam);
 
 /*******************************************************************************
  * h2_mplx list Manipulation.
@@ -318,5 +292,39 @@ APR_RING_INSERT_TAIL((b), ap__b, h2_mplx, link);	\
  */
 #define H2_MPLX_REMOVE(e)	APR_RING_REMOVE((e), link)
 
+/*******************************************************************************
+ * h2_mplx DoS protection
+ ******************************************************************************/
+
+/**
+ * Master connection has entered idle mode.
+ * @param m the mplx instance of the master connection
+ * @return != SUCCESS iff connection should be terminated
+ */
+apr_status_t h2_mplx_idle(h2_mplx *m);
+
+/*******************************************************************************
+ * h2_req_engine handling
+ ******************************************************************************/
+
+typedef void h2_output_consumed(void *ctx, conn_rec *c, apr_off_t consumed);
+typedef apr_status_t h2_mplx_req_engine_init(struct h2_req_engine *engine, 
+                                             const char *id, 
+                                             const char *type,
+                                             apr_pool_t *pool, 
+                                             apr_size_t req_buffer_size,
+                                             request_rec *r,
+                                             h2_output_consumed **pconsumed,
+                                             void **pbaton);
+
+apr_status_t h2_mplx_req_engine_push(const char *ngn_type, 
+                                     request_rec *r, 
+                                     h2_mplx_req_engine_init *einit);
+apr_status_t h2_mplx_req_engine_pull(struct h2_req_engine *ngn, 
+                                     apr_read_type_e block, 
+                                     int capacity, 
+                                     request_rec **pr);
+void h2_mplx_req_engine_done(struct h2_req_engine *ngn, conn_rec *r_conn,
+                             apr_status_t status);
 
 #endif /* defined(__mod_h2__h2_mplx__) */

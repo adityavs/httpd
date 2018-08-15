@@ -19,14 +19,15 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
 <div id="page-content">
 <div id="preamble"><h1>Apache Module mod_proxy_wstunnel</h1>
 <div class="toplang">
-<p><span>Available Languages: </span><a href="../en/mod/mod_proxy_wstunnel.html" title="English">&nbsp;en&nbsp;</a></p>
+<p><span>Available Languages: </span><a href="../en/mod/mod_proxy_wstunnel.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_proxy_wstunnel.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
 </div>
 <table class="module"><tr><th><a href="module-dict.html#Description">Description:</a></th><td>Websockets support module for
 <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></td></tr>
@@ -38,17 +39,26 @@
 
     <p>This module <em>requires</em> the service of <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code>. It provides support for the tunnelling of web
     socket connections to a backend websockets server. The connection
-    is automagically upgraded to a websocket connection:</p>
+    is automatically upgraded to a websocket connection:</p>
 
-    <pre class="prettyprint lang-config">Upgrade: WebSocket
+    <div class="example"><h3>HTTP Response</h3><pre class="prettyprint lang-config">Upgrade: WebSocket
 Connection: Upgrade</pre>
-
-
-
-    <div class="example"><h3>Proxying requests to websockets server</h3><pre class="prettyprint lang-config">ProxyPass "/ws2/"  "ws://echo.websocket.org/"
-ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 </div>
 
+<p>Proxying requests to a websockets server like <code>echo.websocket.org</code> can be done using the
+<code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code> directive:</p>
+    <pre class="prettyprint lang-config">ProxyPass "/ws2/"  "ws://echo.websocket.org/"
+ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
+
+
+<p>Load balancing for multiple backends can be achieved using <code class="module"><a href="../mod/mod_proxy_balancer.html">mod_proxy_balancer</a></code>.</p>
+
+<p>In fact the module can be used to upgrade to other protocols, you can set the <code>upgrade</code>
+parameter in the <code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code>
+directive to allow the module to accept other protocol.
+NONE means you bypass the check for the header but still upgrade to WebSocket.
+ANY means that <code>Upgrade</code> will read in the request headers and use
+in the response <code>Upgrade</code></p>
 </div>
 <div id="quickview"><h3 class="directives">Directives</h3>
 <ul id="toc">
@@ -56,13 +66,13 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxywebsocketasyncdelay">ProxyWebsocketAsyncDelay</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#proxywebsocketidletimeout">ProxyWebsocketIdleTimeout</a></li>
 </ul>
-<h3>See also</h3>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_proxy_wstunnel">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_proxy_wstunnel">Report a bug</a></li></ul><h3>See also</h3>
 <ul class="seealso">
 <li><code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<li><a href="#comments_section">Comments</a></li></ul></div>
 
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ProxyWebsocketAsync" id="ProxyWebsocketAsync">ProxyWebsocketAsync</a> <a name="proxywebsocketasync" id="proxywebsocketasync">Directive</a></h2>
+<div class="directive-section"><h2><a name="ProxyWebsocketAsync" id="ProxyWebsocketAsync">ProxyWebsocketAsync</a> <a name="proxywebsocketasync" id="proxywebsocketasync">Directive</a><a title="Permanent link" href="#proxywebsocketasync" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Instructs this module to try to create an asynchronous tunnel</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyWebsocketAsync ON|OFF</code></td></tr>
@@ -78,7 +88,7 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ProxyWebsocketAsyncDelay" id="ProxyWebsocketAsyncDelay">ProxyWebsocketAsyncDelay</a> <a name="proxywebsocketasyncdelay" id="proxywebsocketasyncdelay">Directive</a></h2>
+<div class="directive-section"><h2><a name="ProxyWebsocketAsyncDelay" id="ProxyWebsocketAsyncDelay">ProxyWebsocketAsyncDelay</a> <a name="proxywebsocketasyncdelay" id="proxywebsocketasyncdelay">Directive</a><a title="Permanent link" href="#proxywebsocketasyncdelay" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Sets the amount of time the tunnel waits synchronously for data</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyWebsocketAsyncDelay <var>num</var>[ms]</code></td></tr>
@@ -88,7 +98,9 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy_wstunnel</td></tr>
 </table>
     <p>If <code class="directive">ProxyWebsocketAsync</code> is enabled, this directive
-    controls how long the server synchronously waits for more data.</p>
+    controls how long the server synchronously waits for more data. The timeout
+    is considered in seconds by default, but it is possible to increase
+    the time resolution to milliseconds adding the <em>ms</em> suffix.</p>
 
     <div class="note"><h3>Note</h3><p>Async support is experimental and subject
     to change. </p></div>
@@ -96,7 +108,7 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ProxyWebsocketIdleTimeout" id="ProxyWebsocketIdleTimeout">ProxyWebsocketIdleTimeout</a> <a name="proxywebsocketidletimeout" id="proxywebsocketidletimeout">Directive</a></h2>
+<div class="directive-section"><h2><a name="ProxyWebsocketIdleTimeout" id="ProxyWebsocketIdleTimeout">ProxyWebsocketIdleTimeout</a> <a name="proxywebsocketidletimeout" id="proxywebsocketidletimeout">Directive</a><a title="Permanent link" href="#proxywebsocketidletimeout" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Sets the maximum amount of time to wait for data on the websockets tunnel</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ProxyWebsocketIdleTimeout <var>num</var>[ms]</code></td></tr>
@@ -106,12 +118,15 @@ ProxyPass "/wss2/" "wss://echo.websocket.org/"</pre>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_proxy_wstunnel</td></tr>
 </table>
     <p>This directive imposes a maximum amount of time for the tunnel to be
-    left open while idle.</p>
+    left open while idle. The timeout is considered in seconds by default, but
+    it is possible to increase the time resolution to milliseconds
+    adding the <em>ms</em> suffix.</p>
 
 </div>
 </div>
 <div class="bottomlang">
-<p><span>Available Languages: </span><a href="../en/mod/mod_proxy_wstunnel.html" title="English">&nbsp;en&nbsp;</a></p>
+<p><span>Available Languages: </span><a href="../en/mod/mod_proxy_wstunnel.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_proxy_wstunnel.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
 </div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
@@ -130,7 +145,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_proxy_wstu
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

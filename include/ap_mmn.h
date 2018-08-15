@@ -484,14 +484,126 @@
  * 20150222.2 (2.5.0-dev)  Add response code 418 as per RFC2324/RFC7168
  * 20150222.3 (2.5.0-dev)  Add ap_some_authn_required, ap_force_authn hook.
  *                         Deprecate broken ap_some_auth_required.
+ * 20150222.4 (2.5.0-dev)  Add protocols and protocols_honor_order to
+ *                         core_server_config. Add hooks protocol_propose
+ *                         protocol_switch and protocol_get. Add
+ *                         ap_select_protocol(), ap_switch_protocol(),
+ *                         ap_get_protocol(). Add HTTP_MISDIRECTED_REQUEST.
+ * 20150222.5 (2.5.0-dev)  Add ap_request_core_filter(),
+ *                         ap_filter_setaside_brigade(),
+ *                         ap_filter_reinstate_brigade() and
+ *                         ap_filter_should_yield(). Add empty and filters to
+ *                         conn_rec.
+ * 20150222.6 (2.5.0-dev)  Add async_filter to conn_rec.
+ * 20150222.7 (2.5.0-dev)  Add ap_casecmpstr[n]();
+ * 20150222.8 (2.5.0-dev)  Add ap_getword_conf2[_nc]();
+ * 20150222.9 (2.5.0-dev)  Add expr_handler to core_dir_config.
+ * 20150222.10 (2.5.0-dev) Add new ap_update_child_status...() methods,
+ *                         add protocol to worker_score in scoreboard.h,
+ *                         Add pre_close connection hook and 
+ *                         ap_prep_lingering_close().
+ * 20150222.11 (2.5.0-dev) Split useragent_host from the conn_rec into
+ *                         the request_rec, with ap_get_useragent_host()
+ * 20150222.12 (2.5.0-dev) Add complete_connection hook,
+ *                         ap_filter_complete_connection().
+ * 20150222.13 (2.5.0-dev) Add ap_create_request().
+ * 20160312.0 (2.5.0-dev)  Rename complete_connection to output_pending,
+ *                         add ap_filter_input_pending(),
+ *                         ap_filter_prepare_brigade(), ap_filter_direction_e
+ * 20160312.1 (2.5.0-dev)  Add cgi_var_rules to core_dir_config.
+ * 20160315.0 (2.5.0-dev)  Rename ap_mpm_register_socket_callback,
+ *                         ap_mpm_register_socket_callback_timeout and
+ *                         ap_mpm_unregister_socket_callback to
+ *                         ap_mpm_register_poll_callback,
+ *                         ap_mpm_register_poll_callback_timeout and
+ *                         ap_mpm_unregister_poll_callback. Add
+ *                         AP_MPMQ_CAN_POLL.
+ * 20160315.1 (2.5.0-dev)  Add AP_IMPLEMENT_OPTIONAL_HOOK_RUN_FIRST.
+ * 20160315.2 (2.5.0-dev)  Add optional proxy_{hook,run}_section_post_config(),
+ *                         ap_proxy_connection_create_ex() and section_config
+ *                         to struct proxy_{worker,balancer} in mod_proxy.h,
+ *                         and optional ssl_engine_set() to mod_ssl.h.
+ * 20160315.3 (2.5.0-dev)  Add childtags to dav_error.
+ * 20160608.1 (2.5.0-dev)  Rename ap_casecmpstr[n]() to ap_cstr_casecmp[n]()
+ * 20160608.2 (2.5.0-dev)  Add dav_get_provider_name.
+ * 20160608.3 (2.5.0-dev)  Add dav_begin_multistatus, dav_send_one_response,
+ *                         dav_finish_multistatus, dav_send_multistatus,
+ *                         dav_handle_err, dav_failed_proppatch,
+ *                         dav_success_proppatch.
+ * 20160608.4 (2.5.0-dev)  Add dav_acl_provider, dav_acl_provider_register
+ *                         dav_get_acl_providers.
+ * 20160608.5 (2.5.0-dev)  Add ap_proxy_check_backend(), and tmp_bb to
+ *                         struct proxy_conn_rec.
+ * 20160608.6 (2.5.0-dev)  Add ap_scan_http_field_content, ap_scan_http_token
+ *                         and ap_get_http_token
+ * 20160608.7 (2.5.0-dev)  Add ap_check_pipeline().
+ * 20160608.8 (2.5.0-dev)  Rename ap_proxy_check_backend() to
+ *                         ap_proxy_check_connection().
+ * 20160608.9 (2.5.0-dev)  Renamed AP_HTTP_CONFORMANCE_LIBERAL to 
+ *                         AP_HTTP_CONFORMANCE_UNSAFE, and
+ *                         eliminated AP_HTTP_CONFORMANCE_LOGONLY
+ * 20160617.1 (2.5.0-dev)  Added http_whitespace and http_methods to
+ *                         core_server_config
+ * 20160629.1 (2.5.0-dev)  Dropped http_whitespace from core_server_config
+ * 20160629.2 (2.5.0-dev)  Replaced fold w/multiple flags for ap_[r]getline()
+ * 20161018.1 (2.5.0-dev)  Dropped ap_has_cntrls(), ap_scan_http_uri_safe(),
+ *                         ap_get_http_token() and http_stricturi conf member.
+ *                         Added ap_scan_vchar_obstext()
+ * 20161018.2 (2.5.0-dev)  add ap_set_conn_count()
+ * 20161018.3 (2.5.0-dev)  add ap_exists_directive()
+ * 20161018.4 (2.5.0-dev)  Add taint to request_rec and ap_request_tainted()
+ * 20161018.5 (2.5.0-dev)  Add ap_get_basic_auth_components() and deprecate
+ *                         ap_get_basic_auth_pw()
+ * 20161018.6 (2.5.0-dev)  Add ap_update_sb_handle()
+ * 20161018.7 (2.5.0-dev)  Add flags field to module_struct and function
+ *                         ap_get_module_flags()
+ * 20171014.1 (2.5.0-dev)  Add NOT_IN_DIR_CONTEXT replacing NOT_IN_DIR_LOC_FILE
+ *                         semantics
+ * 20171014.2 (2.5.1-dev)  Add "use_specific_errors" to listen_rec and 
+ *                         ap_accept_error_is_nonfatal()
+ * 20171014.3 (2.5.1-dev)  AP_DECLARE ap_parse_vhost_addrs() as public 
+ * 20171014.4 (2.5.1-dev)  Add failontimeout_set, growth_set and lbmethod_set
+ *                         to proxy_balancer struct
+ * 20171014.5 (2.5.1-dev)  Add hostname_ex to proxy_worker_shared
+ * 20171014.6 (2.5.1-dev)  Add AP_REG_DOLLAR_ENDONLY, ap_regcomp_get_default_cflags
+ *                         ap_regcomp_set_default_cflags and
+ *                         ap_regcomp_default_cflag_by_name
+ * 20171014.7 (2.5.1-dev)  Add AP_CORE_DEFAULT macro
+ * 20171014.8 (2.5.1-dev)  Add CONN_STATE_NUM to enum conn_state_e
+ * 20171014.9 (2.5.1-dev)  Add response_field_size to proxy_worker_shared 
+ * 20180417.1 (2.5.1-dev)  Toggle ap_filter_input|output_pending API to _NONSTD
+ * 20180417.2 (2.5.1-dev)  Add AP_GETLINE_NOSPC_EOL flag to http_protocol.h
+ * 20180417.3 (2.5.1-dev)  Add ap_fgetline() and AP_GETLINE_NONBLOCK flag
+ * 20180422.1 (2.5.1-dev)  Axe ap_rgetline_core()
+ * 20180606.1 (2.5.1-dev)  Move ap_{make,set}_etag() from module http to core
+ * 20180711.1 (2.5.1-dev)  Add type ap_filter_ring_t, replace field 'filters'
+ *                         by the ap_filter_ring_t 'pending_filters' in struct
+ *                         conn_rec, and add ring entry 'pending' in struct
+ *                         ap_filter_t
+ * 20180711.2 (2.5.1-dev)  Add ap_reuse_brigade_from_pool()
+ * 20180716.1 (2.5.1-dev)  Axe conn_rec->empty brigade
+ * 20180716.2 (2.5.1-dev)  Add read_buf_size member to core_dir_config,
+ *                         flush_max_threshold and flush_max_pipelined to
+ *                         core_server_config, and ap_get_read_buf_size().
+ * 20180720.1 (2.5.1-dev)  Axe data_in_{in,out}put_filter from conn_rec.
+ * 20180720.2 (2.5.1-dev)  Add optional function declaration for
+ *                         ap_proxy_balancer_get_best_worker to mod_proxy.h.
+ * 20180720.3 (2.5.1-dev)  Add client64 to worker_share
+ * 20180720.4 (2.5.1-dev)  Add new duration field to worker_score struct in
+ *                         scoreboard.h
+ * 20180720.5 (2.5.1-dev)  Add new ap_update_global_status() method and
+ *                         times field in the global_score structure in
+ *                         scoreboard.h.
+ * 20180720.6 (2.5.1-dev)  add strict_host_check to core_server_conf
+ *
  */
 
 #define MODULE_MAGIC_COOKIE 0x41503235UL /* "AP25" */
 
 #ifndef MODULE_MAGIC_NUMBER_MAJOR
-#define MODULE_MAGIC_NUMBER_MAJOR 20150222
+#define MODULE_MAGIC_NUMBER_MAJOR 20180720
 #endif
-#define MODULE_MAGIC_NUMBER_MINOR 3                 /* 0...n */
+#define MODULE_MAGIC_NUMBER_MINOR 6                 /* 0...n */
 
 /**
  * Determine if the server's current MODULE_MAGIC_NUMBER is at least a

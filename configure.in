@@ -222,19 +222,24 @@ fi
 
 AC_ARG_WITH(pcre,
 APACHE_HELP_STRING(--with-pcre=PATH,Use external PCRE library))
-
-AC_PATH_PROG(PCRE_CONFIG, pcre-config, false)
-if test -d "$with_pcre" && test -x "$with_pcre/bin/pcre-config"; then
-   PCRE_CONFIG=$with_pcre/bin/pcre-config
-elif test -x "$with_pcre"; then
-   PCRE_CONFIG=$with_pcre
+if test "x$with_pcre" = "x" || test "$with_pcre" = "yes"; then
+  with_pcre="$PATH"
+else if which $with_pcre 2>/dev/null; then :; else
+  with_pcre="$with_pcre/bin:$with_pcre"
+fi
 fi
 
-if test "$PCRE_CONFIG" != "false"; then
+AC_CHECK_TARGET_TOOLS(PCRE_CONFIG, [pcre2-config pcre-config],
+                      [`which $with_pcre 2>/dev/null`], $with_pcre)
+
+if test "x$PCRE_CONFIG" != "x"; then
   if $PCRE_CONFIG --version >/dev/null 2>&1; then :; else
-    AC_MSG_ERROR([Did not find pcre-config script at $PCRE_CONFIG])
+    AC_MSG_ERROR([Did not find working script at $PCRE_CONFIG])
   fi
   case `$PCRE_CONFIG --version` in
+  [1[0-9].*])
+    AC_DEFINE(HAVE_PCRE2, 1, [Detected PCRE2]) 
+    ;;
   [[1-5].*])
     AC_MSG_ERROR([Need at least pcre version 6.7])
     ;;
@@ -244,10 +249,10 @@ if test "$PCRE_CONFIG" != "false"; then
   esac
   AC_MSG_NOTICE([Using external PCRE library from $PCRE_CONFIG])
   APR_ADDTO(PCRE_INCLUDES, [`$PCRE_CONFIG --cflags`])
-  APR_ADDTO(PCRE_LIBS, [`$PCRE_CONFIG --libs`])
+  APR_ADDTO(PCRE_LIBS, [`$PCRE_CONFIG --libs8 2>/dev/null || $PCRE_CONFIG --libs`])
   APR_ADDTO(HTTPD_LIBS, [\$(PCRE_LIBS)])
 else
-  AC_MSG_ERROR([pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/])
+  AC_MSG_ERROR([pcre(2)-config for libpcre not found. PCRE is required and available from http://pcre.org/])
 fi
 APACHE_SUBST(PCRE_LIBS)
 
@@ -279,9 +284,13 @@ save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $PCRE_INCLUDES"
 AC_EGREP_CPP(yes,
 [
+#ifdef HAVE_PCRE2
+yes
+#else
 #include <pcre.h>
 #ifdef PCRE_DUPNAMES
 yes
+#endif
 #endif
 ],pcre_have_dupnames=yes,pcre_have_dupnames=no)
 if test "$pcre_have_dupnames" != "yes"; then
@@ -622,16 +631,21 @@ AC_ARG_ENABLE(load-all-modules,APACHE_HELP_STRING(--enable-load-all-modules,Load
 AC_ARG_ENABLE(maintainer-mode,APACHE_HELP_STRING(--enable-maintainer-mode,Turn on debugging and compile time warnings and load all compiled modules),
 [
   if test "$enableval" = "yes"; then
-    APR_ADDTO(CPPFLAGS, -DAP_DEBUG)
+    APR_ADDTO(NOTEST_CPPFLAGS, -DAP_DEBUG)
     if test "$GCC" = "yes"; then
-      APR_ADDTO(CFLAGS,[-Wall -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations -Wpointer-arith])
+      APACHE_ADD_GCC_CFLAG([-std=c89])
+      APACHE_ADD_GCC_CFLAG([-Werror])
+      APACHE_ADD_GCC_CFLAG([-Wall])
+      APACHE_ADD_GCC_CFLAG([-Wstrict-prototypes])
+      APACHE_ADD_GCC_CFLAG([-Wmissing-prototypes])
+      APACHE_ADD_GCC_CFLAG([-Wmissing-declarations])
       APACHE_ADD_GCC_CFLAG([-Wdeclaration-after-statement])
-      APACHE_ADD_GCC_CFLAG([-Werror=declaration-after-statement])
+      APACHE_ADD_GCC_CFLAG([-Wpointer-arith])
       APACHE_ADD_GCC_CFLAG([-Wformat])
       APACHE_ADD_GCC_CFLAG([-Wformat-security])
-      APACHE_ADD_GCC_CFLAG([-Werror=format-security])
+      APACHE_ADD_GCC_CFLAG([-Wunused])
     elif test "$AIX_XLC" = "yes"; then
-      APR_ADDTO(CFLAGS,-qfullpath -qinitauto=FE -qcheck=all -qinfo=pro)
+      APR_ADDTO(NOTEST_CFLAGS,-qfullpath -qinitauto=FE -qcheck=all -qinfo=pro)
     fi
     if test "x$enable_load_all_modules" = "x"; then
       LOAD_ALL_MODULES=yes
@@ -647,16 +661,21 @@ AC_ARG_ENABLE(maintainer-mode,APACHE_HELP_STRING(--enable-maintainer-mode,Turn o
 AC_ARG_ENABLE(debugger-mode,APACHE_HELP_STRING(--enable-debugger-mode,Turn on debugging and compile time warnings and turn off optimization),
 [
   if test "$enableval" = "yes"; then
-    APR_ADDTO(CPPFLAGS, -DAP_DEBUG)
+    APR_ADDTO(NOTEST_CPPFLAGS, -DAP_DEBUG)
     if test "$GCC" = "yes"; then
-      APR_ADDTO(CFLAGS,[-Wall -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations -Wpointer-arith -O0])
+      APACHE_ADD_GCC_CFLAG([-O0])
+      APACHE_ADD_GCC_CFLAG([-Wall])
+      APACHE_ADD_GCC_CFLAG([-Wstrict-prototypes])
+      APACHE_ADD_GCC_CFLAG([-Wmissing-prototypes])
+      APACHE_ADD_GCC_CFLAG([-Wmissing-declarations])
       APACHE_ADD_GCC_CFLAG([-Wdeclaration-after-statement])
       APACHE_ADD_GCC_CFLAG([-Werror=declaration-after-statement])
+      APACHE_ADD_GCC_CFLAG([-Wpointer-arith])
       APACHE_ADD_GCC_CFLAG([-Wformat])
       APACHE_ADD_GCC_CFLAG([-Wformat-security])
       APACHE_ADD_GCC_CFLAG([-Werror=format-security])
     elif test "$AIX_XLC" = "yes"; then
-      APR_ADDTO(CFLAGS,-qfullpath -qinitauto=FE -qcheck=all -qinfo=pro)
+      APR_ADDTO(NOTEST_CFLAGS,-qfullpath -qinitauto=FE -qcheck=all -qinfo=pro)
     fi
   fi
 ])dnl
@@ -699,6 +718,22 @@ AC_ARG_WITH(valgrind,
       )
     fi ]
 )
+
+dnl Enable the unit test executable if Check is installed.
+dnl TODO: at the moment, only pkg-config discovery is supported.
+AC_MSG_CHECKING([for Check to enable unit tests])
+if test "x$PKGCONFIG" != "x" && `$PKGCONFIG --atleast-version='0.9.12' check`; then
+  UNITTEST_CFLAGS=`$PKGCONFIG --cflags check`
+  UNITTEST_LIBS=`$PKGCONFIG --libs check`
+  other_targets="$other_targets test/httpdunit"
+
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+APACHE_SUBST(UNITTEST_CFLAGS)
+APACHE_SUBST(UNITTEST_LIBS)
+
 
 prefix="$orig_prefix"
 APACHE_ENABLE_MODULES
@@ -788,7 +823,7 @@ APACHE_HELP_STRING(--with-suexec-logfile,Set the logfile),[
 ])
 
 AC_ARG_WITH(suexec-syslog,
-APACHE_HELP_STRING(--with-suexec-syslog,Set the logfile),[
+APACHE_HELP_STRING(--with-suexec-syslog,Use syslog for suexec logging),[
   if test $withval = "yes"; then
     if test "x${with_suexec_logfile}" != "xno"; then
       AC_MSG_NOTICE([hint: use "--without-suexec-logfile --with-suexec-syslog"])
@@ -880,6 +915,23 @@ AC_ARG_ENABLE(bsd-makefiles,APACHE_HELP_STRING(--enable-bsd-makefiles,use BSD Ma
   FORCE_BSD_MAKEFILE="auto"
 ])
 
+AC_ARG_WITH([test-suite],
+    APACHE_HELP_STRING([--with-test-suite=PATH], [enable in-tree 'make check' with the given Apache::Test suite location]),
+    [
+        if test "x$withval" = "xyes"; then
+            AC_MSG_ERROR([option --with-test-suite requires a directory]);
+        else
+            test -f "$withval/Makefile.PL" || AC_MSG_ERROR([--with-test-suite directory $withval does not contain the expected Makefile.PL])
+            TEST_SUITE_LOCATION="$withval"
+            WITH_TEST_SUITE=yes
+        fi
+    ],
+    [ WITH_TEST_SUITE=no ]
+)
+
+APACHE_SUBST(TEST_SUITE_LOCATION)
+APACHE_SUBST(WITH_TEST_SUITE)
+
 APACHE_FAST_OUTPUT(Makefile modules/Makefile srclib/Makefile) 
 APACHE_FAST_OUTPUT(os/Makefile server/Makefile)
 APACHE_FAST_OUTPUT(support/Makefile)
@@ -892,6 +944,13 @@ dnl ## Finalize the variables
 AC_MSG_NOTICE([])
 AC_MSG_NOTICE([Restore user-defined environment settings...])
 AC_MSG_NOTICE([])
+
+APACHE_CONF_SEL_CC=${CC}
+APACHE_CONF_SEL_CFLAGS="${CFLAGS} ${EXTRA_CFLAGS} ${NOTEST_CFLAGS}"
+APACHE_CONF_SEL_CPPFLAGS="${CPPFLAGS} ${EXTRA_CPPFLAGS} ${NOTEST_CPPFLAGS}"
+APACHE_CONF_SEL_LDFLAGS="${LDFLAGS} ${EXTRA_LDFLAGS} ${NOTEST_LDFLAGS}"
+APACHE_CONF_SEL_LIBS="${LIBS} ${EXTRA_LIBS} ${NOTEST_LIBS}"
+APACHE_CONF_SEL_CPP=${CPP}
 
 APR_RESTORE_THE_ENVIRONMENT(CPPFLAGS, EXTRA_)
 APR_RESTORE_THE_ENVIRONMENT(CFLAGS, EXTRA_)
@@ -970,6 +1029,18 @@ AC_SUBST(ap_make_delimiter)
 dnl Ensure that docs/conf is created.
 test -d docs/conf||$mkdir_p docs/conf
 
-AC_OUTPUT($APACHE_OUTPUT_FILES docs/conf/httpd.conf docs/conf/extra/httpd-autoindex.conf docs/conf/extra/httpd-dav.conf docs/conf/extra/httpd-default.conf docs/conf/extra/httpd-info.conf docs/conf/extra/httpd-languages.conf docs/conf/extra/httpd-manual.conf docs/conf/extra/httpd-mpm.conf docs/conf/extra/httpd-multilang-errordoc.conf docs/conf/extra/httpd-policy.conf docs/conf/extra/httpd-ssl.conf docs/conf/extra/httpd-userdir.conf docs/conf/extra/httpd-vhosts.conf docs/conf/extra/proxy-html.conf include/ap_config_layout.h support/apxs support/apachectl support/dbmmanage support/envvars-std support/log_server_status support/logresolve.pl support/phf_abuse_log.cgi support/split-logfile build/rules.mk build/pkg/pkginfo build/config_vars.sh,[true],[
-  APACHE_GEN_MAKEFILES
+AC_CONFIG_FILES(docs/conf/httpd.conf docs/conf/extra/httpd-autoindex.conf docs/conf/extra/httpd-dav.conf docs/conf/extra/httpd-default.conf docs/conf/extra/httpd-info.conf docs/conf/extra/httpd-languages.conf docs/conf/extra/httpd-manual.conf docs/conf/extra/httpd-mpm.conf docs/conf/extra/httpd-multilang-errordoc.conf docs/conf/extra/httpd-policy.conf docs/conf/extra/httpd-ssl.conf docs/conf/extra/httpd-userdir.conf docs/conf/extra/httpd-vhosts.conf docs/conf/extra/proxy-html.conf docs/conf/extra/httpd-macro.conf include/ap_config_layout.h support/apxs support/apachectl support/dbmmanage support/envvars-std support/log_server_status support/logresolve.pl support/phf_abuse_log.cgi support/split-logfile build/rules.mk build/pkg/pkginfo build/config_vars.sh)
+AC_CONFIG_COMMANDS([default], [true], [APACHE_GEN_MAKEFILES])
+AC_OUTPUT
+
+AC_MSG_NOTICE([summary of build options:
+
+    Server Version: ${HTTPD_VERSION}
+    Install prefix: ${prefix}
+    C compiler:     ${APACHE_CONF_SEL_CC}
+    CFLAGS:         ${APACHE_CONF_SEL_CFLAGS}
+    CPPFLAGS:       ${APACHE_CONF_SEL_CPPFLAGS}
+    LDFLAGS:        ${APACHE_CONF_SEL_LDFLAGS}
+    LIBS:           ${APACHE_CONF_SEL_LIBS}
+    C preprocessor: ${APACHE_CONF_SEL_CPP}
 ])

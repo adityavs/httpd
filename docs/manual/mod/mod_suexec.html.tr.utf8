@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p>
 <p class="apache">Apache HTTP Sunucusu Sürüm 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Sunucusu</a> &gt; <a href="http://httpd.apache.org/docs/">Belgeleme</a> &gt; <a href="../">Sürüm 2.5</a> &gt; <a href="./">Modüller</a></div>
@@ -27,6 +27,7 @@
 <div id="preamble"><h1>Apache Modülü mod_suexec</h1>
 <div class="toplang">
 <p><span>Mevcut Diller: </span><a href="../en/mod/mod_suexec.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_suexec.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_suexec.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_suexec.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/mod/mod_suexec.html" title="Türkçe">&nbsp;tr&nbsp;</a></p>
@@ -48,13 +49,13 @@
 <ul id="toc">
 <li><img alt="" src="../images/down.gif" /> <a href="#suexecusergroup">SuexecUserGroup</a></li>
 </ul>
-<h3>Ayrıca bakınız:</h3>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_suexec">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_suexec">Report a bug</a></li></ul><h3>Ayrıca bakınız:</h3>
 <ul class="seealso">
 <li><a href="../suexec.html">SuEXEC Desteği</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Yorum</a></li></ul></div>
+<li><a href="#comments_section">Yorum</a></li></ul></div>
 
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="SuexecUserGroup" id="SuexecUserGroup">SuexecUserGroup</a> <a name="suexecusergroup" id="suexecusergroup">Yönergesi</a></h2>
+<div class="directive-section"><h2><a name="SuexecUserGroup" id="SuexecUserGroup">SuexecUserGroup</a> <a name="suexecusergroup" id="suexecusergroup">Yönergesi</a><a title="Permanent link" href="#suexecusergroup" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Açıklama:</a></th><td>CGI betiklerini çalıştıracak kullanıcı ve grup belirtilir.
 </td></tr>
@@ -86,6 +87,7 @@
 </div>
 <div class="bottomlang">
 <p><span>Mevcut Diller: </span><a href="../en/mod/mod_suexec.html" hreflang="en" rel="alternate" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_suexec.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_suexec.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_suexec.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/mod/mod_suexec.html" title="Türkçe">&nbsp;tr&nbsp;</a></p>
@@ -107,7 +109,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_suexec.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

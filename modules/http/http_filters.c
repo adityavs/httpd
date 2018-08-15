@@ -84,14 +84,15 @@ typedef struct http_filter_ctx
 
 /**
  * Parse a chunk line with optional extension, detect overflow.
- * There are two error cases:
- *  1) If the conversion would require too many bits, APR_EGENERAL is returned.
- *  2) If the conversion used the correct number of bits, but an overflow
+ * There are several error cases:
+ *  1) If the chunk link is misformatted, APR_EINVAL is returned.
+ *  2) If the conversion would require too many bits, APR_EGENERAL is returned.
+ *  3) If the conversion used the correct number of bits, but an overflow
  *     caused only the sign bit to flip, then APR_ENOSPC is returned.
- * In general, any negative number can be considered an overflow error.
+ * A negative chunk length always indicates an overflow error.
  */
 static apr_status_t parse_chunk_size(http_ctx_t *ctx, const char *buffer,
-                                     apr_size_t len, int linelimit)
+                                     apr_size_t len, int linelimit, int strict)
 {
     apr_size_t i = 0;
 
@@ -104,6 +105,12 @@ static apr_status_t parse_chunk_size(http_ctx_t *ctx, const char *buffer,
         if (ctx->state == BODY_CHUNK_END
                 || ctx->state == BODY_CHUNK_END_LF) {
             if (c == LF) {
+                if (strict && (ctx->state != BODY_CHUNK_END_LF)) {
+                    /*
+                     * CR missing before LF.
+                     */
+                    return APR_EINVAL;
+                }
                 ctx->state = BODY_CHUNK;
             }
             else if (c == CR && ctx->state == BODY_CHUNK_END) {
@@ -111,7 +118,7 @@ static apr_status_t parse_chunk_size(http_ctx_t *ctx, const char *buffer,
             }
             else {
                 /*
-                 * LF expected.
+                 * CRLF expected.
                  */
                 return APR_EINVAL;
             }
@@ -138,6 +145,12 @@ static apr_status_t parse_chunk_size(http_ctx_t *ctx, const char *buffer,
         }
 
         if (c == LF) {
+            if (strict && (ctx->state != BODY_CHUNK_LF)) {
+                /*
+                 * CR missing before LF.
+                 */
+                return APR_EINVAL;
+            }
             if (ctx->remaining) {
                 ctx->state = BODY_CHUNK_DATA;
             }
@@ -159,14 +172,17 @@ static apr_status_t parse_chunk_size(http_ctx_t *ctx, const char *buffer,
         }
         else if (ctx->state == BODY_CHUNK_EXT) {
             /*
-             * Control chars (but tabs) are invalid.
+             * Control chars (excluding tabs) are invalid.
+             * TODO: more precisely limit input
              */
             if (c != '\t' && apr_iscntrl(c)) {
                 return APR_EINVAL;
             }
         }
         else if (c == ' ' || c == '\t') {
-            /* Be lenient up to 10 BWS (term from rfc7230 - 3.2.3).
+            /* Be lenient up to 10 implied *LWS, a legacy of RFC 2616,
+             * and noted as errata to RFC7230;
+             * https://www.rfc-editor.org/errata_search.php?rfc=7230&eid=4667
              */
             ctx->state = BODY_CHUNK_CR;
             if (++ctx->chunk_bws > 10) {
@@ -282,14 +298,14 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
                             ap_input_mode_t mode, apr_read_type_e block,
                             apr_off_t readbytes)
 {
-    core_server_config *conf;
+    core_server_config *conf =
+        (core_server_config *) ap_get_module_config(f->r->server->module_config,
+                                                    &core_module);
+    int strict = (conf->http_conformance != AP_HTTP_CONFORMANCE_UNSAFE);
     apr_bucket *e;
     http_ctx_t *ctx = f->ctx;
     apr_status_t rv;
     int again;
-
-    conf = (core_server_config *)
-        ap_get_module_config(f->r->server->module_config, &core_module);
 
     /* just get out of the way of things we don't want. */
     if (mode != AP_MODE_READBYTES && mode != AP_MODE_GETLINE) {
@@ -306,7 +322,7 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
          * Would adding a directive to limit the size of proxied
          * responses be useful?
          */
-        if (!f->r->proxyreq) {
+        if (f->r->proxyreq != PROXYREQ_RESPONSE) {
             ctx->limit = ap_get_limit_req_body(f->r);
         }
         else {
@@ -317,7 +333,7 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
         lenp = apr_table_get(f->r->headers_in, "Content-Length");
 
         if (tenc) {
-            if (strcasecmp(tenc, "chunked") == 0 /* fast path */
+            if (ap_cstr_casecmp(tenc, "chunked") == 0 /* fast path */
                     || ap_find_last_token(f->r->pool, tenc, "chunked")) {
                 ctx->state = BODY_CHUNK;
             }
@@ -478,7 +494,7 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
 
                     if (rv == APR_SUCCESS) {
                         rv = parse_chunk_size(ctx, buffer, len,
-                                f->r->server->limit_req_fieldsize);
+                                f->r->server->limit_req_fieldsize, strict);
                     }
                     if (rv != APR_SUCCESS) {
                         ap_log_rerror(APLOG_MARK, APLOG_INFO, rv, f->r, APLOGNO(01590)
@@ -615,34 +631,81 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
 
 struct check_header_ctx {
     request_rec *r;
-    int error;
+    int strict;
 };
 
 /* check a single header, to be used with apr_table_do() */
-static int check_header(void *arg, const char *name, const char *val)
+static int check_header(struct check_header_ctx *ctx,
+                        const char *name, const char **val)
 {
-    struct check_header_ctx *ctx = arg;
+    const char *pos, *end;
+    char *dst = NULL;
+
     if (name[0] == '\0') {
-        ctx->error = 1;
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, ctx->r, APLOGNO(02428)
                       "Empty response header name, aborting request");
         return 0;
     }
-    if (ap_has_cntrl(name)) {
-        ctx->error = 1;
+
+    if (ctx->strict) { 
+        end = ap_scan_http_token(name);
+    }
+    else {
+        end = ap_scan_vchar_obstext(name);
+    }
+    if (*end) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, ctx->r, APLOGNO(02429)
-                      "Response header name '%s' contains control "
+                      "Response header name '%s' contains invalid "
                       "characters, aborting request",
                       name);
         return 0;
     }
-    if (ap_has_cntrl(val)) {
-        ctx->error = 1;
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, ctx->r, APLOGNO(02430)
-                      "Response header '%s' contains control characters, "
-                      "aborting request: %s",
-                      name, val);
-        return 0;
+
+    for (pos = *val; *pos; pos = end) {
+        end = ap_scan_http_field_content(pos);
+        if (*end) {
+            if (end[0] != CR || end[1] != LF || (end[2] != ' ' &&
+                                                 end[2] != '\t')) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, ctx->r, APLOGNO(02430)
+                              "Response header '%s' value of '%s' contains "
+                              "invalid characters, aborting request",
+                              name, pos);
+                return 0;
+            }
+            if (!dst) {
+                *val = dst = apr_palloc(ctx->r->pool, strlen(*val) + 1);
+            }
+        }
+        if (dst) {
+            memcpy(dst, pos, end - pos);
+            dst += end - pos;
+            if (*end) {
+                /* skip folding and replace with a single space */
+                end += 3 + strspn(end + 3, "\t ");
+                *dst++ = ' ';
+            }
+        }
+    }
+    if (dst) {
+        *dst = '\0';
+    }
+    return 1;
+}
+
+static int check_headers_table(apr_table_t *t, struct check_header_ctx *ctx)
+{
+    const apr_array_header_t *headers = apr_table_elts(t);
+    apr_table_entry_t *header;
+    int i;
+
+    for (i = 0; i < headers->nelts; ++i) {
+        header = &APR_ARRAY_IDX(headers, i, apr_table_entry_t);
+        if (!header->key) {
+            continue;
+        }
+        if (!check_header(ctx, header->key, (const char **)&header->val)) {
+            return 0;
+        }
     }
     return 1;
 }
@@ -653,34 +716,24 @@ static int check_header(void *arg, const char *name, const char *val)
  */
 static APR_INLINE int check_headers(request_rec *r)
 {
-    const char *loc;
-    struct check_header_ctx ctx = { 0, 0 };
+    struct check_header_ctx ctx;
+    core_server_config *conf =
+            ap_get_core_module_config(r->server->module_config);
 
     ctx.r = r;
-    apr_table_do(check_header, &ctx, r->headers_out, NULL);
-    if (ctx.error)
-        return 0; /* problem has been logged by check_header() */
+    ctx.strict = (conf->http_conformance != AP_HTTP_CONFORMANCE_UNSAFE);
+    return check_headers_table(r->headers_out, &ctx) &&
+           check_headers_table(r->err_headers_out, &ctx);
+}
 
-    if ((loc = apr_table_get(r->headers_out, "Location")) != NULL) {
-        const char *scheme_end = ap_strchr_c(loc, ':');
-
-        /*
-         * Check that the URI has a valid scheme and is absolute
-         * XXX Should we do a full uri parse here?
-         */
-        if (!ap_is_url(loc))
-            goto bad;
-
-        if (scheme_end[1] != '/' || scheme_end[2] != '/')
-            goto bad;
+static int check_headers_recursion(request_rec *r)
+{
+    void *check = NULL;
+    apr_pool_userdata_get(&check, "check_headers_recursion", r->pool);
+    if (check) {
+        return 1;
     }
-
-    return 1;
-
-bad:
-    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02431)
-                  "Bad Location header in response: '%s', aborting request",
-                  loc);
+    apr_pool_userdata_setn("true", "check_headers_recursion", NULL, r->pool);
     return 0;
 }
 
@@ -764,7 +817,7 @@ static int uniq_field_values(void *d, const char *key, const char *val)
          */
         for (i = 0, strpp = (char **) values->elts; i < values->nelts;
              ++i, ++strpp) {
-            if (*strpp && strcasecmp(*strpp, start) == 0) {
+            if (*strpp && ap_cstr_casecmp(*strpp, start) == 0) {
                 break;
             }
         }
@@ -791,8 +844,7 @@ static void fixup_vary(request_rec *r)
      * its comma-separated fieldname values, and then add them to varies
      * if not already present in the array.
      */
-    apr_table_do((int (*)(void *, const char *, const char *))uniq_field_values,
-                 (void *) varies, r->headers_out, "Vary", NULL);
+    apr_table_do(uniq_field_values, varies, r->headers_out, "Vary", NULL);
 
     /* If we found any, replace old Vary fields with unique-ified value */
 
@@ -1189,17 +1241,30 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
     header_filter_ctx *ctx = f->ctx;
     const char *ctype;
     ap_bucket_error *eb = NULL;
-    core_server_config *conf;
+    apr_status_t rv = APR_SUCCESS;
+    int recursive_error = 0;
 
     AP_DEBUG_ASSERT(!r->main);
 
-    if (r->header_only) {
-        if (!ctx) {
-            ctx = f->ctx = apr_pcalloc(r->pool, sizeof(header_filter_ctx));
-        }
-        else if (ctx->headers_sent) {
+    if (!ctx) {
+        ctx = f->ctx = apr_pcalloc(r->pool, sizeof(header_filter_ctx));
+    }
+    else if (ctx->headers_sent) {
+        /* Eat body if response must not have one. */
+        if (r->header_only || AP_STATUS_IS_HEADER_ONLY(r->status)) {
+            /* Still next filters may be waiting for EOS, so pass it (alone)
+             * when encountered and be done with this filter.
+             */
+            e = APR_BRIGADE_LAST(b);
+            if (e != APR_BRIGADE_SENTINEL(b) && APR_BUCKET_IS_EOS(e)) {
+                APR_BUCKET_REMOVE(e);
+                apr_brigade_cleanup(b);
+                APR_BRIGADE_INSERT_HEAD(b, e);
+                ap_remove_output_filter(f);
+                rv = ap_pass_brigade(f->next, b);
+            }
             apr_brigade_cleanup(b);
-            return OK;
+            return rv;
         }
     }
 
@@ -1220,9 +1285,36 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
             return ap_pass_brigade(f->next, b);
         }
     }
-    if (eb) {
-        int status;
 
+    if (!ctx->headers_sent && !check_headers(r)) {
+        /* We may come back here from ap_die() below,
+         * so clear anything from this response.
+         */
+        apr_table_clear(r->headers_out);
+        apr_table_clear(r->err_headers_out);
+        apr_brigade_cleanup(b);
+
+        /* Don't recall ap_die() if we come back here (from its own internal
+         * redirect or error response), otherwise we can end up in infinite
+         * recursion; better fall through with 500, minimal headers and an
+         * empty body (EOS only).
+         */
+        if (!check_headers_recursion(r)) {
+            ap_die(HTTP_INTERNAL_SERVER_ERROR, r);
+            return AP_FILTER_ERROR;
+        }
+        r->status = HTTP_INTERNAL_SERVER_ERROR;
+        e = ap_bucket_eoc_create(c->bucket_alloc);
+        APR_BRIGADE_INSERT_TAIL(b, e);
+        e = apr_bucket_eos_create(c->bucket_alloc);
+        APR_BRIGADE_INSERT_TAIL(b, e);
+        r->content_type = r->content_encoding = NULL;
+        r->content_languages = NULL;
+        ap_set_content_length(r, 0);
+        recursive_error = 1;
+    }
+    else if (eb) {
+        int status;
         status = eb->status;
         apr_brigade_cleanup(b);
         ap_die(status, r);
@@ -1232,7 +1324,8 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
     if (r->assbackwards) {
         r->sent_bodyct = 1;
         ap_remove_output_filter(f);
-        return ap_pass_brigade(f->next, b);
+        rv = ap_pass_brigade(f->next, b);
+        goto out;
     }
 
     /*
@@ -1243,15 +1336,6 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
     if (!apr_is_empty_table(r->err_headers_out)) {
         r->headers_out = apr_table_overlay(r->pool, r->err_headers_out,
                                            r->headers_out);
-    }
-
-    conf = ap_get_core_module_config(r->server->module_config);
-    if (conf->http_conformance & AP_HTTP_CONFORMANCE_STRICT) {
-        int ok = check_headers(r);
-        if (!ok && !(conf->http_conformance & AP_HTTP_CONFORMANCE_LOGONLY)) {
-            ap_die(HTTP_INTERNAL_SERVER_ERROR, r);
-            return AP_FILTER_ERROR;
-        }
     }
 
     /*
@@ -1283,7 +1367,14 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
     basic_http_header_check(r, &protocol);
     ap_set_keepalive(r);
 
-    if (r->chunked) {
+    if (AP_STATUS_IS_HEADER_ONLY(r->status)) {
+        apr_table_unset(r->headers_out, "Transfer-Encoding");
+        apr_table_unset(r->headers_out, "Content-Length");
+        r->content_type = r->content_encoding = NULL;
+        r->content_languages = NULL;
+        r->clength = r->chunked = 0;
+    }
+    else if (r->chunked) {
         apr_table_mergen(r->headers_out, "Transfer-Encoding", "chunked");
         apr_table_unset(r->headers_out, "Content-Length");
     }
@@ -1306,7 +1397,7 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
 
         while (field && (token = ap_get_list_item(r->pool, &field)) != NULL) {
             for (i = 0; i < r->content_languages->nelts; ++i) {
-                if (!strcasecmp(token, languages[i]))
+                if (!ap_cstr_casecmp(token, languages[i]))
                     break;
             }
             if (i == r->content_languages->nelts) {
@@ -1319,7 +1410,7 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
     }
 
     /*
-     * Control cachability for non-cachable responses if not already set by
+     * Control cachability for non-cacheable responses if not already set by
      * some other part of the server configuration.
      */
     if (r->no_cache && !apr_table_get(r->headers_out, "Expires")) {
@@ -1357,12 +1448,15 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
 
     terminate_header(b2);
 
-    ap_pass_brigade(f->next, b2);
+    rv = ap_pass_brigade(f->next, b2);
+    if (rv != APR_SUCCESS) {
+        goto out;
+    }
+    ctx->headers_sent = 1;
 
-    if (r->header_only) {
+    if (r->header_only || AP_STATUS_IS_HEADER_ONLY(r->status)) {
         apr_brigade_cleanup(b);
-        ctx->headers_sent = 1;
-        return OK;
+        goto out;
     }
 
     r->sent_bodyct = 1;         /* Whatever follows is real body stuff... */
@@ -1380,7 +1474,12 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
      * brigade won't be chunked properly.
      */
     ap_remove_output_filter(f);
-    return ap_pass_brigade(f->next, b);
+    rv = ap_pass_brigade(f->next, b);
+out:
+    if (recursive_error) {
+        return AP_FILTER_ERROR;
+    }
+    return rv;
 }
 
 /*
@@ -1398,24 +1497,24 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_http_header_filter(ap_filter_t *f,
 AP_DECLARE(int) ap_map_http_request_error(apr_status_t rv, int status)
 {
     switch (rv) {
-    case AP_FILTER_ERROR: {
+    case AP_FILTER_ERROR:
         return AP_FILTER_ERROR;
-    }
-    case APR_EGENERAL: {
+
+    case APR_EGENERAL:
         return HTTP_BAD_REQUEST;
-    }
-    case APR_ENOSPC: {
+
+    case APR_ENOSPC:
         return HTTP_REQUEST_ENTITY_TOO_LARGE;
-    }
-    case APR_ENOTIMPL: {
+
+    case APR_ENOTIMPL:
         return HTTP_NOT_IMPLEMENTED;
-    }
-    case APR_ETIMEDOUT: {
+
+    case APR_TIMEUP:
+    case APR_ETIMEDOUT:
         return HTTP_REQUEST_TIME_OUT;
-    }
-    default: {
+
+    default:
         return status;
-    }
     }
 }
 
@@ -1543,7 +1642,7 @@ AP_DECLARE(int) ap_setup_client_block(request_rec *r, int read_policy)
     r->remaining = 0;
 
     if (tenc) {
-        if (strcasecmp(tenc, "chunked")) {
+        if (ap_cstr_casecmp(tenc, "chunked")) {
             ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01592)
                           "Unknown Transfer-Encoding %s", tenc);
             return HTTP_NOT_IMPLEMENTED;
@@ -1760,12 +1859,12 @@ apr_status_t ap_http_outerror_filter(ap_filter_t *f,
      *              EOS bucket.
      */
     if (ctx->seen_eoc) {
-        for (e = APR_BRIGADE_FIRST(b);
-             e != APR_BRIGADE_SENTINEL(b);
-             e = APR_BUCKET_NEXT(e))
-        {
-            if (!APR_BUCKET_IS_METADATA(e)) {
-                APR_BUCKET_REMOVE(e);
+        e = APR_BRIGADE_FIRST(b);
+        while (e != APR_BRIGADE_SENTINEL(b)) {
+            apr_bucket *c = e;
+            e = APR_BUCKET_NEXT(e);
+            if (!APR_BUCKET_IS_METADATA(c)) {
+                apr_bucket_delete(c);
             }
         }
     }

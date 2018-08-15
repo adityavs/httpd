@@ -19,6 +19,7 @@
 
 #define APR_WANT_STRFUNC
 #include "apr_want.h"
+#include "apr_version.h"
 
 #include "ap_config.h"
 #include "httpd.h"
@@ -57,6 +58,9 @@ static ap_listen_rec **ap_listen_buckets;
  * listeners can be duplicated (if configured).
  */
 AP_DECLARE_DATA int ap_have_so_reuseport = -1;
+
+/* Whether some accept() errors are non-fatal to the process */
+AP_DECLARE_DATA int ap_accept_errors_nonfatal = 0;
 
 static ap_listen_rec *old_listeners;
 static int ap_listenbacklog;
@@ -146,7 +150,7 @@ static apr_status_t make_sock(apr_pool_t *p, ap_listen_rec *server, int do_bind_
 #endif
 
 #if defined(SO_REUSEPORT)
-    if (ap_have_so_reuseport) {
+    if (ap_have_so_reuseport && ap_listencbratio > 0) {
         int thesock;
         apr_os_sock_get(&thesock, s);
         if (setsockopt(thesock, SOL_SOCKET, SO_REUSEPORT,
@@ -404,43 +408,80 @@ static const char *set_systemd_listener(process_rec *process, apr_port_t port,
 
 #endif /* HAVE_SYSTEMD */
 
-static const char *alloc_listener(process_rec *process, char *addr,
-                                  apr_port_t port, const char* proto,
-                                  void *slave)
+/* Returns non-zero if socket address SA matches hostname, port and
+ * scope_id.  p is used for temporary allocations. */
+static int match_address(const apr_sockaddr_t *sa,
+                         const char *hostname, apr_port_t port,
+                         const char *scope_id, apr_pool_t *p)
 {
-    ap_listen_rec **walk, *last;
-    apr_status_t status;
-    apr_sockaddr_t *sa;
-    int found_listener = 0;
+    const char *old_scope = NULL;
 
-    /* see if we've got an old listener for this address:port */
-    for (walk = &old_listeners; *walk;) {
-        sa = (*walk)->bind_addr;
+#if APR_VERSION_AT_LEAST(1,7,0)
+    /* To be clever here we could correctly match numeric and
+     * non-numeric zone ids.  Ignore failure, old_scope will be left
+     * as NULL. */
+    (void) apr_sockaddr_zone_get(sa, &old_scope, NULL, p);
+#endif
+    
+    return port == sa->port
+        && ((!hostname && !sa->hostname)
+            || (hostname && sa->hostname && !strcmp(sa->hostname, hostname)))
+        && ((!scope_id && !old_scope)
+            || (scope_id && old_scope && !strcmp(scope_id, old_scope)));            
+}
+
+/* ### This logic doesn't cope with DNS changes across a restart. */
+static int find_listeners(ap_listen_rec **from, ap_listen_rec **to,
+                          const char *addr, apr_port_t port,
+                          const char *scope_id, apr_pool_t *temp_pool)
+{
+    int found = 0;
+
+    while (*from) {
+        apr_sockaddr_t *sa = (*from)->bind_addr;
+
         /* Some listeners are not real so they will not have a bind_addr. */
         if (sa) {
             ap_listen_rec *new;
-            apr_port_t oldport;
 
-            oldport = sa->port;
-            /* If both ports are equivalent, then if their names are equivalent,
-             * then we will re-use the existing record.
-             */
-            if (port == oldport &&
-                ((!addr && !sa->hostname) ||
-                 ((addr && sa->hostname) && !strcmp(sa->hostname, addr)))) {
-                new = *walk;
-                *walk = new->next;
-                new->next = ap_listeners;
-                ap_listeners = new;
-                found_listener = 1;
+            /* Re-use the existing record if it matches completely
+             * against an existing listener. */
+            if (match_address(sa, addr, port, scope_id, temp_pool)) {
+                found = 1;
+                if (!to) {
+                    break;
+                }
+                new = *from;
+                *from = new->next;
+                new->next = *to;
+                *to = new;
                 continue;
             }
         }
 
-        walk = &(*walk)->next;
+        from = &(*from)->next;
     }
 
-    if (found_listener) {
+    return found;
+}
+
+static const char *alloc_listener(process_rec *process, const char *addr,
+                                  apr_port_t port, const char* proto,
+                                  const char *scope_id, void *slave,
+                                  apr_pool_t *temp_pool)
+{
+    ap_listen_rec *last;
+    apr_status_t status;
+    apr_sockaddr_t *sa;
+
+    /* see if we've got a listener for this address:port, which is an error */
+    if (find_listeners(&ap_listeners, NULL, addr, port, scope_id, temp_pool)) {
+        return "Cannot define multiple Listeners on the same IP:port";
+    }
+
+    /* see if we've got an old listener for this address:port */
+    if (find_listeners(&old_listeners, &ap_listeners, addr, port,
+                       scope_id, temp_pool)) {
         if (ap_listeners->slave != slave) {
             return "Cannot define a slave on the same IP:port as a Listener";
         }
@@ -493,6 +534,18 @@ static const char *alloc_listener(process_rec *process, char *addr,
                           addr);
             return "Listen setup failed";
         }
+
+#if APR_VERSION_AT_LEAST(1,7,0)
+        if (scope_id) {
+            status = apr_sockaddr_zone_set(new->bind_addr, scope_id);
+            if (status) {
+                ap_log_perror(APLOG_MARK, APLOG_CRIT, status, process->pool, APLOGNO(10102)
+                              "alloc_listener: failed to set scope for %pI to %s",
+                              new->bind_addr, scope_id);
+                return "Listen step failed";
+            }
+        }
+#endif
 
         /* We need to preserve the order returned by getaddrinfo() */
         if (last == NULL) {
@@ -743,6 +796,7 @@ AP_DECLARE(int) ap_setup_listeners(server_rec *s)
     }
 
     for (lr = ap_listeners; lr; lr = lr->next) {
+        lr->use_specific_errors = ap_accept_errors_nonfatal;
         num_listeners++;
         found = 0;
         for (ls = s; ls && !found; ls = ls->next) {
@@ -923,7 +977,7 @@ AP_DECLARE(void) ap_listen_pre_config(void)
     /* Check once whether or not SO_REUSEPORT is supported. */
     if (ap_have_so_reuseport < 0) {
         /* This is limited to Linux with defined SO_REUSEPORT (ie. 3.9+) for
-         * now since the implementation evenly distributes connections accross
+         * now since the implementation evenly distributes connections across
          * all the listening threads/processes.
          *
          * *BSDs have SO_REUSEPORT too but with a different semantic: the first
@@ -952,6 +1006,14 @@ AP_DECLARE(void) ap_listen_pre_config(void)
         ap_have_so_reuseport = 0;
 
     }
+}
+
+AP_DECLARE(int) ap_accept_error_is_nonfatal(apr_status_t status)
+{
+
+   return APR_STATUS_IS_ECONNREFUSED(status)
+             || APR_STATUS_IS_ECONNABORTED(status)
+             || APR_STATUS_IS_ECONNRESET(status);
 }
 
 AP_DECLARE_NONSTD(const char *) ap_set_listener(cmd_parms *cmd, void *dummy,
@@ -984,10 +1046,14 @@ AP_DECLARE_NONSTD(const char *) ap_set_listener(cmd_parms *cmd, void *dummy,
         host = NULL;
     }
 
+#if !APR_VERSION_AT_LEAST(1,7,0)
     if (scope_id) {
-        /* XXX scope id support is useful with link-local IPv6 addresses */
-        return "Scope id is not supported";
+        return apr_pstrcat(cmd->pool,
+                           "Scope ID in address '", argv[0],
+                           "' not supported with APR " APR_VERSION_STRING,
+                           NULL);
     }
+#endif
 
     if (!port) {
         return "Port must be specified";
@@ -1011,7 +1077,8 @@ AP_DECLARE_NONSTD(const char *) ap_set_listener(cmd_parms *cmd, void *dummy,
     }
 #endif
 
-    return alloc_listener(cmd->server->process, host, port, proto, NULL);
+    return alloc_listener(cmd->server->process, host, port, proto,
+                          scope_id, NULL, cmd->temp_pool);
 }
 
 AP_DECLARE_NONSTD(const char *) ap_set_listenbacklog(cmd_parms *cmd,
@@ -1070,6 +1137,18 @@ AP_DECLARE_NONSTD(const char *) ap_set_send_buffer_size(cmd_parms *cmd,
     }
 
     send_buffer_size = s;
+    return NULL;
+}
+
+AP_DECLARE_NONSTD(const char *) ap_set_accept_errors_nonfatal(cmd_parms *cmd,
+                                                           void *dummy,
+                                                           int flag)
+{
+    const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);
+    if (err != NULL) {
+        return err;
+    }
+    ap_accept_errors_nonfatal = flag;
     return NULL;
 }
 

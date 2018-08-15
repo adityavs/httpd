@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
@@ -61,10 +61,12 @@
 <li><img alt="" src="../images/down.gif" /> <a href="#requireany">&lt;RequireAny&gt;</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#requirenone">&lt;RequireNone&gt;</a></li>
 </ul>
-<ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_authz_core">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_authz_core">Report a bug</a></li></ul><h3>See also</h3>
+<ul class="seealso">
+<li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="logic" id="logic">Authorization Containers</a></h2>
+<h2><a name="logic" id="logic">Authorization Containers</a><a title="Permanent link" href="#logic" class="permalink">&para;</a></h2>
 
     <p>The authorization container directives
     <code class="directive"><a href="#requireall">&lt;RequireAll&gt;</a></code>,
@@ -107,7 +109,7 @@
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="requiredirectives" id="requiredirectives">The Require Directives</a></h2>
+<h2><a name="requiredirectives" id="requiredirectives">The Require Directives</a><a title="Permanent link" href="#requiredirectives" class="permalink">&para;</a></h2>
 
   <p><code class="module"><a href="../mod/mod_authz_core.html">mod_authz_core</a></code> provides some generic authorization
   providers which can be used with the
@@ -195,7 +197,7 @@
   <p>The <code>expr</code> provider allows basing authorization
   decisions on arbitrary expressions.</p>
 
-    <pre class="prettyprint lang-config">Require expr %{TIME_HOUR} -ge 9 &amp;&amp; %{TIME_HOUR} -le 17</pre>
+    <pre class="prettyprint lang-config">Require expr "%{TIME_HOUR} -ge 9 &amp;&amp; %{TIME_HOUR} -le 17"</pre>
 
 
     <pre class="prettyprint lang-config">&lt;RequireAll&gt;
@@ -208,7 +210,8 @@
 
 
   <p>The syntax is described in the <a href="../expr.html">ap_expr</a>
-  documentation.</p>
+  documentation. Before httpd 2.4.16, the surrounding double-quotes MUST be
+  omitted.</p>
 
   <p>Normally, the expression is evaluated before authentication. However, if
   the expression returns false and references the variable
@@ -220,7 +223,7 @@
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="authzalias" id="authzalias">Creating Authorization Provider Aliases</a></h2>
+<h2><a name="authzalias" id="authzalias">Creating Authorization Provider Aliases</a><a title="Permanent link" href="#authzalias" class="permalink">&para;</a></h2>
 
     <p>Extended authorization providers can be created within the configuration
     file and assigned an alias name.  The alias providers can then be referenced
@@ -240,13 +243,13 @@
         <pre class="prettyprint lang-config">&lt;AuthzProviderAlias ldap-group ldap-group-alias1 "cn=my-group,o=ctx"&gt;
     AuthLDAPBindDN "cn=youruser,o=ctx"
     AuthLDAPBindPassword yourpassword
-    AuthLDAPURL "ldap://ldap.host/o=ctx"
+    AuthLDAPUrl "ldap://ldap.host/o=ctx"
 &lt;/AuthzProviderAlias&gt;
 
 &lt;AuthzProviderAlias ldap-group ldap-group-alias2 "cn=my-other-group,o=dev"&gt;
     AuthLDAPBindDN "cn=yourotheruser,o=dev"
     AuthLDAPBindPassword yourotherpassword
-    AuthLDAPURL "ldap://other.ldap.host/o=dev?cn"
+    AuthLDAPUrl "ldap://other.ldap.host/o=dev?cn"
 &lt;/AuthzProviderAlias&gt;
 
 Alias "/secure" "/webpages/secure"
@@ -267,7 +270,7 @@ Alias "/secure" "/webpages/secure"
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="AuthMerging" id="AuthMerging">AuthMerging</a> <a name="authmerging" id="authmerging">Directive</a></h2>
+<div class="directive-section"><h2><a name="AuthMerging" id="AuthMerging">AuthMerging</a> <a name="authmerging" id="authmerging">Directive</a><a title="Permanent link" href="#authmerging" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Controls the manner in which each configuration section's
 authorization logic is combined with that of preceding configuration
@@ -334,7 +337,7 @@ sections.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="AuthzProviderAlias" id="AuthzProviderAlias">&lt;AuthzProviderAlias&gt;</a> <a name="authzprovideralias" id="authzprovideralias">Directive</a></h2>
+<div class="directive-section"><h2><a name="AuthzProviderAlias" id="AuthzProviderAlias">&lt;AuthzProviderAlias&gt;</a> <a name="authzprovideralias" id="authzprovideralias">Directive</a><a title="Permanent link" href="#authzprovideralias" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enclose a group of directives that represent an
 extension of a base authorization provider and referenced by the specified
@@ -351,10 +354,26 @@ alias</td></tr>
     authorization directives that can be referenced by the alias name using the
     directive <code class="directive"><a href="#require">Require</a></code>.</p>
 
+    <p>If several parameters are needed in <var>Require-Parameters</var>,
+    they must be enclosed in quotation marks.  Otherwise, only the first one
+    is taken into account.</p>
+    
+    <pre class="prettyprint lang-config"># In this example, for both addresses to be taken into account, they MUST be enclosed
+# between quotation marks
+&lt;AuthzProviderAlias ip blacklisted-ips "XXX.XXX.XXX.XXX YYY.YYY.YYY.YYY"&gt;
+&lt;/AuthzProviderAlias&gt;
+
+&lt;Directory "/path/to/dir"&gt;
+    &lt;RequireAll&gt;
+        Require not blacklisted-ips
+        Require all granted
+    &lt;/RequireAll&gt;
+&lt;/Directory&gt;</pre>
+
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="AuthzSendForbiddenOnFailure" id="AuthzSendForbiddenOnFailure">AuthzSendForbiddenOnFailure</a> <a name="authzsendforbiddenonfailure" id="authzsendforbiddenonfailure">Directive</a></h2>
+<div class="directive-section"><h2><a name="AuthzSendForbiddenOnFailure" id="AuthzSendForbiddenOnFailure">AuthzSendForbiddenOnFailure</a> <a name="authzsendforbiddenonfailure" id="authzsendforbiddenonfailure">Directive</a><a title="Permanent link" href="#authzsendforbiddenonfailure" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Send '403 FORBIDDEN' instead of '401 UNAUTHORIZED' if
 authentication succeeds but authorization fails
@@ -362,6 +381,7 @@ authentication succeeds but authorization fails
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>AuthzSendForbiddenOnFailure On|Off</code></td></tr>
 <tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>AuthzSendForbiddenOnFailure Off</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>directory, .htaccess</td></tr>
+<tr><th><a href="directive-dict.html#Override">Override:</a></th><td>AuthConfig</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_authz_core</td></tr>
 <tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in Apache HTTPD 2.3.11 and later</td></tr>
@@ -381,7 +401,7 @@ authentication succeeds but authorization fails
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="Require" id="Require">Require</a> <a name="require" id="require">Directive</a></h2>
+<div class="directive-section"><h2><a name="Require" id="Require">Require</a> <a name="require" id="require">Directive</a><a title="Permanent link" href="#require" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Tests whether an authenticated user is authorized by
 an authorization provider.</td></tr>
@@ -521,7 +541,7 @@ Require group admin</pre>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="RequireAll" id="RequireAll">&lt;RequireAll&gt;</a> <a name="requireall" id="requireall">Directive</a></h2>
+<div class="directive-section"><h2><a name="RequireAll" id="RequireAll">&lt;RequireAll&gt;</a> <a name="requireall" id="requireall">Directive</a><a title="Permanent link" href="#requireall" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enclose a group of authorization directives of which none
 must fail and at least one must succeed for the enclosing directive to
@@ -554,7 +574,7 @@ succeed.</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="RequireAny" id="RequireAny">&lt;RequireAny&gt;</a> <a name="requireany" id="requireany">Directive</a></h2>
+<div class="directive-section"><h2><a name="RequireAny" id="RequireAny">&lt;RequireAny&gt;</a> <a name="requireany" id="requireany">Directive</a><a title="Permanent link" href="#requireany" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enclose a group of authorization directives of which one
 must succeed for the enclosing directive to succeed.</td></tr>
@@ -593,7 +613,7 @@ must succeed for the enclosing directive to succeed.</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="RequireNone" id="RequireNone">&lt;RequireNone&gt;</a> <a name="requirenone" id="requirenone">Directive</a></h2>
+<div class="directive-section"><h2><a name="RequireNone" id="RequireNone">&lt;RequireNone&gt;</a> <a name="requirenone" id="requirenone">Directive</a><a title="Permanent link" href="#requirenone" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enclose a group of authorization directives of which none
 must succeed for the enclosing directive to not fail.</td></tr>
@@ -656,7 +676,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_authz_core
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

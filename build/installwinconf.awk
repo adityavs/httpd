@@ -99,6 +99,7 @@ BEGIN {
           print "LoadModule alias_module modules/mod_alias.so" > dstfl;
           print "#LoadModule allowhandlers_module modules/mod_allowhandlers.so" > dstfl;
           print "#LoadModule allowmethods_module modules/mod_allowmethods.so" > dstfl;
+          print "#LoadModule apreq_module modules/mod_apreq.so" > dstfl;
           print "LoadModule asis_module modules/mod_asis.so" > dstfl;
           print "LoadModule auth_basic_module modules/mod_auth_basic.so" > dstfl;
           print "#LoadModule auth_digest_module modules/mod_auth_digest.so" > dstfl;
@@ -119,6 +120,7 @@ BEGIN {
           print "#LoadModule authz_owner_module modules/mod_authz_owner.so" > dstfl;
           print "LoadModule authz_user_module modules/mod_authz_user.so" > dstfl;
           print "LoadModule autoindex_module modules/mod_autoindex.so" > dstfl;
+          print "#LoadModule brotli_module modules/mod_brotli.so" > dstfl;
           print "#LoadModule buffer_module modules/mod_buffer.so" > dstfl;
           print "#LoadModule cache_module modules/mod_cache.so" > dstfl;
           print "#LoadModule cache_disk_module modules/mod_cache_disk.so" > dstfl;
@@ -139,6 +141,7 @@ BEGIN {
           print "#LoadModule ext_filter_module modules/mod_ext_filter.so" > dstfl;
           print "#LoadModule file_cache_module modules/mod_file_cache.so" > dstfl;
           print "#LoadModule filter_module modules/mod_filter.so" > dstfl;
+          print "#LoadModule http2_module modules/mod_http2.so" > dstfl;
           print "#LoadModule headers_module modules/mod_headers.so" > dstfl;
           print "#LoadModule heartbeat_module modules/mod_heartbeat.so" > dstfl;
           print "#LoadModule heartmonitor_module modules/mod_heartmonitor.so" > dstfl;
@@ -158,6 +161,7 @@ BEGIN {
           print "#LoadModule log_forensic_module modules/mod_log_forensic.so" > dstfl;
           print "#LoadModule lua_module modules/mod_lua.so" > dstfl;
           print "#LoadModule macro_module modules/mod_macro.so" > dstfl;
+          print "#LoadModule md_module modules/mod_md.so" > dstfl;
           print "LoadModule mime_module modules/mod_mime.so" > dstfl;
           print "#LoadModule mime_magic_module modules/mod_mime_magic.so" > dstfl;
           print "LoadModule negotiation_module modules/mod_negotiation.so" > dstfl;
@@ -168,9 +172,12 @@ BEGIN {
           print "#LoadModule proxy_express_module modules/mod_proxy_express.so" > dstfl;
           print "#LoadModule proxy_fcgi_module modules/mod_proxy_fcgi.so" > dstfl;
           print "#LoadModule proxy_ftp_module modules/mod_proxy_ftp.so" > dstfl;
+          print "#LoadModule proxy_hcheck_module modules/mod_proxy_hcheck.so" > dstfl;
           print "#LoadModule proxy_html_module modules/mod_proxy_html.so" > dstfl;
           print "#LoadModule proxy_http_module modules/mod_proxy_http.so" > dstfl;
+          print "#LoadModule proxy_http2_module modules/mod_proxy_http2.so" > dstfl;
           print "#LoadModule proxy_scgi_module modules/mod_proxy_scgi.so" > dstfl;
+          print "#LoadModule proxy_uwsgi_module modules/mod_proxy_uwsgi.so" > dstfl;
           print "#LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so" > dstfl;
           print "#LoadModule ratelimit_module modules/mod_ratelimit.so" > dstfl;
           print "#LoadModule reflector_module modules/mod_reflector.so" > dstfl;

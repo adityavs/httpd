@@ -46,8 +46,6 @@ static char bad_gateway_seen;
 
 apr_status_t ap_http_chunk_filter(ap_filter_t *f, apr_bucket_brigade *b)
 {
-#define ASCII_CRLF  "\015\012"
-#define ASCII_ZERO  "\060"
     conn_rec *c = f->r->connection;
     apr_bucket_brigade *more, *tmp;
     apr_bucket *e;
@@ -69,6 +67,7 @@ apr_status_t ap_http_chunk_filter(ap_filter_t *f, apr_bucket_brigade *b)
         {
             if (APR_BUCKET_IS_EOS(e)) {
                 /* there shouldn't be anything after the eos */
+                ap_remove_output_filter(f);
                 eos = e;
                 break;
             }
@@ -144,7 +143,7 @@ apr_status_t ap_http_chunk_filter(ap_filter_t *f, apr_bucket_brigade *b)
              * Insert the end-of-chunk CRLF before an EOS or
              * FLUSH bucket, or appended to the brigade
              */
-            e = apr_bucket_immortal_create(ASCII_CRLF, 2, c->bucket_alloc);
+            e = apr_bucket_immortal_create(CRLF_ASCII, 2, c->bucket_alloc);
             if (eos != NULL) {
                 APR_BUCKET_INSERT_BEFORE(eos, e);
             }
@@ -178,19 +177,19 @@ apr_status_t ap_http_chunk_filter(ap_filter_t *f, apr_bucket_brigade *b)
          */
         if (eos && !f->ctx) {
             /* XXX: (2) trailers ... does not yet exist */
-            e = apr_bucket_immortal_create(ASCII_ZERO ASCII_CRLF
+            e = apr_bucket_immortal_create(ZERO_ASCII CRLF_ASCII
                                            /* <trailers> */
-                                           ASCII_CRLF, 5, c->bucket_alloc);
+                                           CRLF_ASCII, 5, c->bucket_alloc);
             APR_BUCKET_INSERT_BEFORE(eos, e);
         }
 
         /* pass the brigade to the next filter. */
         rv = ap_pass_brigade(f->next, b);
+        apr_brigade_cleanup(b);
         if (rv != APR_SUCCESS || eos != NULL) {
             return rv;
         }
         tmp = b;
-        apr_brigade_cleanup(tmp);
     }
     return APR_SUCCESS;
 }

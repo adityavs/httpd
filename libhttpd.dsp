@@ -410,6 +410,10 @@ InputPath=.\os\win32\os.h
 
 SOURCE=.\server\test_char.h
 # End Source File
+# Begin Source File
+
+SOURCE=.\include\util_cookies.h
+# End Source File
 # End Group
 # Begin Group "httpd"
 
@@ -446,10 +450,6 @@ SOURCE=.\server\core_filters.c
 # Begin Source File
 
 SOURCE=.\modules\http\http_core.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\modules\http\http_etag.c
 # End Source File
 # Begin Source File
 
@@ -537,11 +537,15 @@ SOURCE=.\server\util_cookies.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\server\util_cookies.h
+SOURCE=.\server\util_debug.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\include\util_ebcdic.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\server\util_etag.c
 # End Source File
 # Begin Source File
 

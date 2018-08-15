@@ -115,10 +115,9 @@
  */
 typedef struct motorz_core_t motorz_core_t;
 struct motorz_core_t {
+    ap_unixd_mpm_retained_data *mpm;
+
     int first_server_limit;
-    int module_loads;
-    ap_generation_t my_generation;
-    int volatile is_graceful; /* set from signal handler */
     int maxclients_reported;
     /*
      * The max child slot ever assigned, preserved across restarts.  Necessary
@@ -129,7 +128,7 @@ struct motorz_core_t {
     apr_pool_t *pool;
     apr_thread_mutex_t *mtx;
     apr_pollset_t *pollset;
-    apr_skiplist *timer_ring;
+    apr_skiplist *timeout_ring;
     apr_thread_pool_t *workers;
 };
 

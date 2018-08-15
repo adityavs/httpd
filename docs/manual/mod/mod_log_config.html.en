@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="../images/feather.gif" /></div>
+<img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Modules</a></div>
@@ -27,6 +27,7 @@
 <div id="preamble"><h1>Apache Module mod_log_config</h1>
 <div class="toplang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_log_config.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_log_config.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_log_config.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_log_config.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/mod/mod_log_config.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
@@ -59,16 +60,17 @@
 <ul id="toc">
 <li><img alt="" src="../images/down.gif" /> <a href="#bufferedlogs">BufferedLogs</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#customlog">CustomLog</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#globallog">GlobalLog</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#logformat">LogFormat</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#transferlog">TransferLog</a></li>
 </ul>
-<h3>See also</h3>
+<h3>Bugfix checklist</h3><ul class="seealso"><li><a href="https://www.apache.org/dist/httpd/CHANGES_2.4">httpd changelog</a></li><li><a href="https://bz.apache.org/bugzilla/buglist.cgi?bug_status=__open__&amp;list_id=144532&amp;product=Apache%20httpd-2&amp;query_format=specific&amp;order=changeddate%20DESC%2Cpriority%2Cbug_severity&amp;component=mod_log_config">Known issues</a></li><li><a href="https://bz.apache.org/bugzilla/enter_bug.cgi?product=Apache%20httpd-2&amp;component=mod_log_config">Report a bug</a></li></ul><h3>See also</h3>
 <ul class="seealso">
 <li><a href="../logs.html">Apache Log Files</a></li>
-</ul><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
+<li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="formats" id="formats">Custom Log Formats</a></h2>
+<h2><a name="formats" id="formats">Custom Log Formats</a><a title="Permanent link" href="#formats" class="permalink">&para;</a></h2>
 
     <p>The format argument to the <code class="directive"><a href="#logformat">LogFormat</a></code> and <code class="directive"><a href="#customlog">CustomLog</a></code> directives is a string. This string is
     used to log each request to the log file. It can contain literal
@@ -102,7 +104,7 @@
         <td>The contents of cookie <var>VARNAME</var> in the request sent
         to the server. Only version 0 cookies are fully supported.</td></tr>
 <tr class="odd"><td><code>%D</code></td>
-        <td>The time taken to serve the request, in microseconds.</td></tr>
+        <td>The time taken to serve the request, in microseconds. See %T for details.</td></tr>
 <tr><td><code>%{<var>VARNAME</var>}e</code></td>
         <td>The contents of the environment variable
         <var>VARNAME</var>.</td></tr>
@@ -113,10 +115,15 @@
         <code>Off</code>, which is the default. If it logs the hostname
         for only a few hosts, you probably have access control
         directives mentioning them by name. See <a href="mod_authz_host.html#reqhost">the Require host
-        documentation</a>.</td></tr>
-<tr class="odd"><td><code>%H</code></td>
+        documentation</a>. This format is affected by modifications to the 
+        remote hostname by modules like <code class="module"><a href="../mod/mod_remoteip.html">mod_remoteip</a></code>.</td></tr>
+<tr class="odd"><td><code>%{c}h</code></td>
+        <td>Like <code>%h</code>, but always reports on the hostname of the
+        underlying TCP connection and not any modifications to the 
+        remote hostname by modules like <code class="module"><a href="../mod/mod_remoteip.html">mod_remoteip</a></code>.</td></tr>
+<tr><td><code>%H</code></td>
         <td>The request protocol.</td></tr>
-<tr><td><code>%{<var>VARNAME</var>}i</code></td>
+<tr class="odd"><td><code>%{<var>VARNAME</var>}i</code></td>
         <td>The contents of <code><var>VARNAME</var>:</code> header line(s)
         in the request sent to the server. Changes made by other
         modules (e.g. <code class="module"><a href="../mod/mod_headers.html">mod_headers</a></code>) affect this.  If you're
@@ -126,18 +133,22 @@
         that value with the <code>%{<var>VARNAME</var>}e</code> described
         above.
         </td></tr>
-<tr class="odd"><td><code>%k</code></td>
+<tr><td><code>%k</code></td>
         <td>Number of keepalive requests handled on this connection.  Interesting if
           <code class="directive"><a href="../mod/core.html#keepalive">KeepAlive</a></code> is being used, so that,
           for example, a '1' means the first keepalive request after the initial
           one, '2' the second, etc...;
           otherwise this is always 0 (indicating the initial request).</td></tr>
-<tr><td><code>%l</code></td>
+<tr class="odd"><td><code>%l</code></td>
         <td>Remote logname (from identd, if supplied). This will return a
         dash unless <code class="module"><a href="../mod/mod_ident.html">mod_ident</a></code> is present and <code class="directive"><a href="../mod/mod_ident.html#identitycheck">IdentityCheck</a></code> is set
         <code>On</code>.</td></tr>
-<tr class="odd"><td><code>%L</code></td>
+<tr><td><code>%L</code></td>
         <td>The request log ID from the error log (or '-' if nothing has been
+            logged to the error log for this request). Look for the
+            matching error log line to see what request caused what error.</td></tr>
+<tr class="odd"><td><code>%{c}L</code></td>
+        <td>The connection log ID from the error log (or '-' if nothing has been
             logged to the error log for this request). Look for the
             matching error log line to see what request caused what error.</td></tr>
 <tr><td><code>%m</code></td>
@@ -198,7 +209,22 @@
         <code>%{<var>format</var>}t</code> tokens instead.
         </td></tr>
 <tr class="odd"><td><code>%T</code></td>
-        <td>The time taken to serve the request, in seconds.</td></tr>
+        <td><p>The time taken to serve the request, in seconds. The time measured
+        begins when the first line of the HTTP request is read from the host
+        operating system by the HTTP server and ends when the last byte of
+        the response is written by the HTTP server to the host operating system.</p>
+        <p>The time measured does <em>not</em> include any of the following:</p>
+        <ul>
+         <li> Time spent in TCP or TLS handshakes.</li>
+         <li> The time before a webserver thread is able to read the first 
+              line of the request.</li>
+         <li> Delays in the operating system putting the response data out 
+              onto the network.</li>
+         <li> Time taken for the response to arrive at the client host.</li>
+         <li> Time taken for the the useragent to read and process the 
+              response.</li>
+       </ul>
+    </td></tr>
 <tr><td><code>%{<var>UNIT</var>}T</code></td>
         <td>The time taken to serve the request, in a time unit given by
         <code>UNIT</code>. Valid units are <code>ms</code> for milliseconds,
@@ -360,14 +386,14 @@
     
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Security Considerations</a></h2>
+<h2><a name="security" id="security">Security Considerations</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
     <p>See the <a href="../misc/security_tips.html#serverroot">security tips</a>
     document for details on why your security could be compromised
     if the directory where logfiles are stored is writable by
     anyone other than the user that starts the server.</p>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="BufferedLogs" id="BufferedLogs">BufferedLogs</a> <a name="bufferedlogs" id="bufferedlogs">Directive</a></h2>
+<div class="directive-section"><h2><a name="BufferedLogs" id="BufferedLogs">BufferedLogs</a> <a name="bufferedlogs" id="bufferedlogs">Directive</a><a title="Permanent link" href="#bufferedlogs" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Buffer log entries in memory before writing to disk</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>BufferedLogs On|Off</code></td></tr>
@@ -389,7 +415,7 @@
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="CustomLog" id="CustomLog">CustomLog</a> <a name="customlog" id="customlog">Directive</a></h2>
+<div class="directive-section"><h2><a name="CustomLog" id="CustomLog">CustomLog</a> <a name="customlog" id="customlog">Directive</a><a title="Permanent link" href="#customlog" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Sets filename and format of log file</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>CustomLog  <var>file</var>|<var>pipe</var>|<var>provider</var>
@@ -492,7 +518,36 @@ CustomLog "referer.log" referer env=!localreferer</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="LogFormat" id="LogFormat">LogFormat</a> <a name="logformat" id="logformat">Directive</a></h2>
+<div class="directive-section"><h2><a name="GlobalLog" id="GlobalLog">GlobalLog</a> <a name="globallog" id="globallog">Directive</a><a title="Permanent link" href="#globallog" class="permalink">&para;</a></h2>
+<table class="directive">
+<tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Sets filename and format of log file</td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>GlobalLog  <var>file</var>|<var>pipe</var>|<var>provider</var>
+<var>format</var>|<var>nickname</var>
+[env=[!]<var>environment-variable</var>|
+expr=<var>expression</var>]</code></td></tr>
+<tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config</td></tr>
+<tr><th><a href="directive-dict.html#Status">Status:</a></th><td>Base</td></tr>
+<tr><th><a href="directive-dict.html#Module">Module:</a></th><td>mod_log_config</td></tr>
+<tr><th><a href="directive-dict.html#Compatibility">Compatibility:</a></th><td>Available in Apache HTTP Server 2.4.19 and later</td></tr>
+</table>
+
+    <p>The <code class="directive">GlobalLog</code> directive defines a log shared
+       by the main server configuration and all defined virtual hosts.</p>
+
+    <p>The <code class="directive">GlobalLog</code> directive is identical to
+    the <code class="directive">CustomLog</code> directive, apart from the following
+    differences:</p>
+    <ul>
+       <li><code class="directive">GlobalLog</code> is not valid in virtual host
+            context.</li>
+       <li><code class="directive">GlobalLog</code> is used by virtual hosts that
+           define their own <code class="directive">CustomLog</code>, unlike a 
+           globally specified <code class="directive">CustomLog</code>.</li>
+    </ul>
+
+</div>
+<div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="directive-section"><h2><a name="LogFormat" id="LogFormat">LogFormat</a> <a name="logformat" id="logformat">Directive</a><a title="Permanent link" href="#logformat" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Describes a format for use in a log file</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>LogFormat <var>format</var>|<var>nickname</var>
@@ -537,7 +592,7 @@ CustomLog "referer.log" referer env=!localreferer</pre>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="TransferLog" id="TransferLog">TransferLog</a> <a name="transferlog" id="transferlog">Directive</a></h2>
+<div class="directive-section"><h2><a name="TransferLog" id="TransferLog">TransferLog</a> <a name="transferlog" id="transferlog">Directive</a><a title="Permanent link" href="#transferlog" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Specify location of a log file</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>TransferLog <var>file</var>|<var>pipe</var></code></td></tr>
@@ -562,6 +617,7 @@ TransferLog "logs/access_log"</pre>
 </div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/mod/mod_log_config.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/mod/mod_log_config.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ja/mod/mod_log_config.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="../ko/mod/mod_log_config.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/mod/mod_log_config.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
@@ -583,7 +639,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_log_config
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

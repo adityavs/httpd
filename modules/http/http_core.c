@@ -52,7 +52,7 @@ static const char *set_keep_alive_timeout(cmd_parms *cmd, void *dummy,
                                           const char *arg)
 {
     apr_interval_time_t timeout;
-    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);
+    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_CONTEXT);
     if (err != NULL) {
         return err;
     }
@@ -66,7 +66,7 @@ static const char *set_keep_alive_timeout(cmd_parms *cmd, void *dummy,
      * set for the main server, because if no http_module directive is used
      * for a vhost, it will inherit the http_srv_cfg from the main server.
      * However keep_alive_timeout_set helps determine whether the vhost should
-     * use its own configured timeout or the one from the vhost delared first
+     * use its own configured timeout or the one from the vhost declared first
      * on the same IP:port (ie. c->base_server, and the legacy behaviour).
      */
     if (cmd->server->is_virtual) {
@@ -78,7 +78,7 @@ static const char *set_keep_alive_timeout(cmd_parms *cmd, void *dummy,
 static const char *set_keep_alive(cmd_parms *cmd, void *dummy,
                                   int arg)
 {
-    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);
+    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_CONTEXT);
     if (err != NULL) {
         return err;
     }
@@ -90,7 +90,7 @@ static const char *set_keep_alive(cmd_parms *cmd, void *dummy,
 static const char *set_keep_alive_max(cmd_parms *cmd, void *dummy,
                                       const char *arg)
 {
-    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);
+    const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_CONTEXT);
     if (err != NULL) {
         return err;
     }
@@ -134,23 +134,27 @@ static apr_port_t http_port(const request_rec *r)
 
 static int ap_process_http_async_connection(conn_rec *c)
 {
-    request_rec *r;
+    request_rec *r = NULL;
     conn_state_t *cs = c->cs;
 
     AP_DEBUG_ASSERT(cs != NULL);
     AP_DEBUG_ASSERT(cs->state == CONN_STATE_READ_REQUEST_LINE);
 
-    while (cs->state == CONN_STATE_READ_REQUEST_LINE) {
+    if (cs->state == CONN_STATE_READ_REQUEST_LINE) {
         ap_update_child_status_from_conn(c->sbh, SERVER_BUSY_READ, c);
-
+        if (ap_extended_status) {
+            ap_set_conn_count(c->sbh, r, c->keepalives);
+        }
         if ((r = ap_read_request(c))) {
-
             c->keepalive = AP_CONN_UNKNOWN;
             /* process the request if it was read without error */
 
-            ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, r);
             if (r->status == HTTP_OK) {
                 cs->state = CONN_STATE_HANDLER;
+                if (ap_extended_status) {
+                    ap_set_conn_count(c->sbh, r, c->keepalives + 1);
+                }
+                ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, r);
                 ap_process_async_request(r);
                 /* After the call to ap_process_request, the
                  * request pool may have been deleted.  We set
@@ -203,10 +207,10 @@ static int ap_process_http_sync_connection(conn_rec *c)
         c->keepalive = AP_CONN_UNKNOWN;
         /* process the request if it was read without error */
 
-        ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, r);
         if (r->status == HTTP_OK) {
             if (cs)
                 cs->state = CONN_STATE_HANDLER;
+            ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, r);
             ap_process_request(r);
             /* After the call to ap_process_request, the
              * request pool will have been deleted.  We set
@@ -254,6 +258,7 @@ static int ap_process_http_connection(conn_rec *c)
 
 static int http_create_request(request_rec *r)
 {
+    /* FIXME: we must only add these filters if we are an HTTP request */
     if (!r->main && !r->prev) {
         ap_add_output_filter_handle(ap_byterange_filter_handle,
                                     NULL, r, r->connection);
@@ -262,6 +267,8 @@ static int http_create_request(request_rec *r)
         ap_add_output_filter_handle(ap_http_header_filter_handle,
                                     NULL, r, r->connection);
         ap_add_output_filter_handle(ap_http_outerror_filter_handle,
+                                    NULL, r, r->connection);
+        ap_add_output_filter_handle(ap_request_core_filter_handle,
                                     NULL, r, r->connection);
     }
 

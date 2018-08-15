@@ -103,7 +103,7 @@ static int cache_quick_handler(request_rec *r, int lookup)
     /*
      * Which cache module (if any) should handle this request?
      */
-    if (!(providers = cache_get_providers(r, conf, r->parsed_uri))) {
+    if (!(providers = cache_get_providers(r, conf))) {
         return DECLINED;
     }
 
@@ -413,7 +413,7 @@ static int cache_handler(request_rec *r)
     /*
      * Which cache module (if any) should handle this request?
      */
-    if (!(providers = cache_get_providers(r, conf, r->parsed_uri))) {
+    if (!(providers = cache_get_providers(r, conf))) {
         return DECLINED;
     }
 
@@ -823,6 +823,7 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
     apr_pool_t *p;
     apr_bucket *e;
     apr_table_t *headers;
+    const char *query;
 
     conf = (cache_server_conf *) ap_get_module_config(r->server->module_config,
                                                       &cache_module);
@@ -908,8 +909,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
             /* add a revalidation warning */
             warn_head = apr_table_get(r->err_headers_out, "Warning");
-            if ((warn_head == NULL) || ((warn_head != NULL)
-                    && (ap_strstr_c(warn_head, "111") == NULL))) {
+            if ((warn_head == NULL) ||
+                    (ap_strstr_c(warn_head, "111") == NULL)) {
                 apr_table_mergen(r->err_headers_out, "Warning",
                         "111 Revalidation failed");
             }
@@ -926,6 +927,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
             return ap_pass_brigade(f, in);
         }
     }
+
+    query = cache_use_early_url(r) ? r->parsed_uri.query : r->args;
 
     /* read expiry date; if a bad date, then leave it so the client can
      * read it
@@ -1037,13 +1040,19 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
     if (reason) {
         /* noop */
     }
-    else if (exps != NULL && exp == APR_DATE_BAD) {
-        /* if a broken Expires header is present, don't cache it */
+    else if (!control.s_maxage && !control.max_age && !dconf->store_expired
+             && exps != NULL && exp == APR_DATE_BAD) {
+        /* if a broken Expires header is present, don't cache it
+         * Unless CC: s-maxage or max-age is present
+         */
         reason = apr_pstrcat(p, "Broken expires header: ", exps, NULL);
     }
-    else if (!dconf->store_expired && exp != APR_DATE_BAD
+    else if (!control.s_maxage && !control.max_age
+            && !dconf->store_expired && exp != APR_DATE_BAD
             && exp < r->request_time) {
-        /* if a Expires header is in the past, don't cache it */
+        /* if a Expires header is in the past, don't cache it 
+         * Unless CC: s-maxage or max-age is present
+         */
         reason = "Expires header already expired; not cacheable";
     }
     else if (!dconf->store_expired && (control.must_revalidate
@@ -1054,7 +1063,7 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
         reason
                 = "s-maxage or max-age zero and no Last-Modified or Etag; not cacheable";
     }
-    else if (!conf->ignorequerystring && r->parsed_uri.query && exps == NULL
+    else if (!conf->ignorequerystring && query && exps == NULL
             && !control.max_age && !control.s_maxage) {
         /* if a query string is present but no explicit expiration time,
          * don't cache it (RFC 2616/13.9 & 13.2.1)
@@ -1187,8 +1196,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(02473) 
                 "cache: %s responded with an uncacheable 304, " 
-                "retrying the request. Reason: %s", 
-                r->unparsed_uri, reason);
+                "retrying the request %s. Reason: %s", 
+                cache->key, r->unparsed_uri, reason);
 
         /* we've got a cache conditional miss! tell anyone who cares */
         cache_run_cache_status(cache->handle, r, r->headers_out, AP_CACHE_MISS,
@@ -1222,8 +1231,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
     if (reason) {
         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00768)
-                "cache: %s not cached. Reason: %s", r->unparsed_uri,
-                reason);
+                "cache: %s not cached for request %s. Reason: %s",
+                cache->key, r->unparsed_uri, reason);
 
         /* we've got a cache miss! tell anyone who cares */
         cache_run_cache_status(cache->handle, r, r->headers_out, AP_CACHE_MISS,
@@ -1287,7 +1296,7 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
     /* It's safe to cache the response.
      *
-     * There are two possiblities at this point:
+     * There are two possibilities at this point:
      * - cache->handle == NULL. In this case there is no previously
      * cached entity anywhere on the system. We must create a brand
      * new entity and store the response in it.
@@ -1341,7 +1350,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
     }
 
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00769)
-            "cache: Caching url: %s", r->unparsed_uri);
+            "cache: Caching url %s for request %s",
+            cache->key, r->unparsed_uri);
 
     /* We are actually caching this response. So it does not
      * make sense to remove this entity any more.
@@ -1397,7 +1407,26 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
                 "replacing with now");
     }
 
+
+    /* CC has priority over Expires.  */
+    if (control.s_maxage || control.max_age) {
+        apr_int64_t x;
+
+        x = control.s_maxage ? control.s_maxage_value : control.max_age_value;
+        x = x * MSEC_ONE_SEC;
+
+        if (x < dconf->minex) {
+            x = dconf->minex;
+        }
+        if (x > dconf->maxex) {
+            x = dconf->maxex;
+        }
+        exp = date + x;
+    }
+
     /* if no expiry date then
+     *   if Cache-Control: s-maxage
+     *      expiry date = date + smaxage
      *   if Cache-Control: max-age
      *      expiry date = date + max-age
      *   else if lastmod
@@ -1405,28 +1434,9 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
      *   else
      *      expire date = date + defaultexpire
      */
+
     if (exp == APR_DATE_BAD) {
-
-        if (control.max_age) {
-            apr_int64_t x;
-
-            errno = 0;
-            x = control.max_age_value;
-            if (errno) {
-                x = dconf->defex;
-            }
-            else {
-                x = x * MSEC_ONE_SEC;
-            }
-            if (x < dconf->minex) {
-                x = dconf->minex;
-            }
-            if (x > dconf->maxex) {
-                x = dconf->maxex;
-            }
-            exp = date + x;
-        }
-        else if ((lastmod != APR_DATE_BAD) && (lastmod < date)) {
+        if ((lastmod != APR_DATE_BAD) && (lastmod < date)) {
             /* if lastmod == date then you get 0*conf->factor which results in
              * an expiration time of now. This causes some problems with
              * freshness calculations, so we choose the else path...
@@ -1462,6 +1472,7 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
          * forward all of them to the client, including non-cacheable ones).
          */
         r->headers_out = cache_merge_headers_out(r);
+        apr_table_clear(r->err_headers_out);
 
         /* Merge in our cached headers.  However, keep any updated values. */
         /* take output, overlay on top of cached */
@@ -1566,6 +1577,9 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
         /* let someone else attempt to cache */
         cache_remove_lock(conf, cache, r, NULL);
+
+        ap_log_rerror(APLOG_MARK, APLOG_DEBUG, APR_SUCCESS, r, APLOGNO(02971)
+                    "cache: serving %s (revalidated)", r->uri);
 
         return ap_pass_brigade(f->next, bb);
     }
@@ -1887,8 +1901,8 @@ static void cache_insert_error_filter(request_rec *r)
 
             /* add a revalidation warning */
             warn_head = apr_table_get(r->err_headers_out, "Warning");
-            if ((warn_head == NULL) || ((warn_head != NULL)
-                    && (ap_strstr_c(warn_head, "111") == NULL))) {
+            if ((warn_head == NULL)
+                    || ap_strstr_c(warn_head, "111") == NULL) {
                 apr_table_mergen(r->err_headers_out, "Warning",
                         "111 Revalidation failed");
             }

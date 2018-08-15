@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "mpm_common.h"
 #include "httpd.h"
 #include "http_log.h"
 #include "ap_listen.h"
@@ -92,20 +93,11 @@ static apr_status_t simple_io_process(simple_conn_t * scon)
         }
 
         if (scon->cs.state == CONN_STATE_WRITE_COMPLETION) {
-            ap_filter_t *output_filter = c->output_filters;
-            while (output_filter->next != NULL) {
-                output_filter = output_filter->next;
-            }
+            int pending;
 
-            rv = output_filter->frec->filter_func.out_func(output_filter,
-                                                           NULL);
-
-            if (rv != APR_SUCCESS) {
-                ap_log_error(APLOG_MARK, APLOG_WARNING, rv, ap_server_conf, APLOGNO(00249)
-                             "network write failure in core output filter");
-                scon->cs.state = CONN_STATE_LINGER;
-            }
-            else if (c->data_in_output_filters) {
+            ap_update_child_status(c->sbh, SERVER_BUSY_WRITE, NULL);
+            pending = ap_run_output_pending(c);
+            if (pending == OK) {
                 /* Still in WRITE_COMPLETION_STATE:
                  * Set a write timeout for this connection, and let the
                  * event thread poll for writeability.
@@ -134,10 +126,12 @@ static apr_status_t simple_io_process(simple_conn_t * scon)
                 }
                 return APR_SUCCESS;
             }
-            else if (c->keepalive != AP_CONN_KEEPALIVE || c->aborted) {
+            if (pending != DECLINED
+                    || c->keepalive != AP_CONN_KEEPALIVE
+                    || c->aborted) {
                 scon->cs.state = CONN_STATE_LINGER;
             }
-            else if (c->data_in_input_filters) {
+            else if (ap_run_input_pending(c) == OK) {
                 scon->cs.state = CONN_STATE_READ_REQUEST_LINE;
             }
             else {

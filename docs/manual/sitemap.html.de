@@ -19,7 +19,7 @@
 <div id="page-header">
 <p class="menu"><a href="./mod/">Module</a> | <a href="./mod/quickreference.html">Direktiven</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossar</a> | <a href="./sitemap.html">Seitenindex</a></p>
 <p class="apache">Apache HTTP Server Version 2.5</p>
-<img alt="" src="./images/feather.gif" /></div>
+<img alt="" src="./images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="./images/left.gif" /></a></div>
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP-Server</a> &gt; <a href="http://httpd.apache.org/docs/">Dokumentation</a> &gt; <a href="./">Version 2.5</a></div>
@@ -34,6 +34,9 @@
 <a href="./tr/sitemap.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a> |
 <a href="./zh-cn/sitemap.html" hreflang="zh-cn" rel="alternate" title="Simplified Chinese">&nbsp;zh-cn&nbsp;</a></p>
 </div>
+<div class="outofdate">Diese Übersetzung ist möglicherweise
+            nicht mehr aktuell. Bitte prüfen Sie die englische Version auf
+            die neuesten Änderungen.</div>
 
 <p>Diese Seite verzeichnet die zur Zeit verfügbaren Dokumente der
 <a href="./">Dokumentation zum Apache HTTP Server Version
@@ -216,6 +219,7 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_authz_owner.html">Apache-Modul mod_authz_owner</a></li>
 <li><a href="mod/mod_authz_user.html">Apache-Modul mod_authz_user</a></li>
 <li><a href="mod/mod_autoindex.html">Apache-Modul mod_autoindex</a></li>
+<li><a href="mod/mod_brotli.html">Apache-Modul mod_brotli</a></li>
 <li><a href="mod/mod_buffer.html">Apache-Modul mod_buffer</a></li>
 <li><a href="mod/mod_cache.html">Apache-Modul mod_cache</a></li>
 <li><a href="mod/mod_cache_disk.html">Apache-Modul mod_cache_disk</a></li>
@@ -224,6 +228,7 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_cgi.html">Apache-Modul mod_cgi</a></li>
 <li><a href="mod/mod_cgid.html">Apache-Modul mod_cgid</a></li>
 <li><a href="mod/mod_charset_lite.html">Apache-Modul mod_charset_lite</a></li>
+<li><a href="mod/mod_crypto.html">Apache-Modul mod_crypto</a></li>
 <li><a href="mod/mod_data.html">Apache-Modul mod_data</a></li>
 <li><a href="mod/mod_dav.html">Apache-Modul mod_dav</a></li>
 <li><a href="mod/mod_dav_fs.html">Apache-Modul mod_dav_fs</a></li>
@@ -241,10 +246,10 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_file_cache.html">Apache-Modul mod_file_cache</a></li>
 <li><a href="mod/mod_filter.html">Apache-Modul mod_filter</a></li>
 <li><a href="mod/mod_firehose.html">Apache-Modul mod_firehose</a></li>
-<li><a href="mod/mod_h2.html">Apache-Modul mod_h2</a></li>
 <li><a href="mod/mod_headers.html">Apache-Modul mod_headers</a></li>
 <li><a href="mod/mod_heartbeat.html">Apache-Modul mod_heartbeat</a></li>
 <li><a href="mod/mod_heartmonitor.html">Apache-Modul mod_heartmonitor</a></li>
+<li><a href="mod/mod_http2.html">Apache-Modul mod_http2</a></li>
 <li><a href="mod/mod_ident.html">Apache-Modul mod_ident</a></li>
 <li><a href="mod/mod_imagemap.html">Apache-Modul mod_imagemap</a></li>
 <li><a href="mod/mod_include.html">Apache-Modul mod_include</a></li>
@@ -262,6 +267,7 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_logio.html">Apache-Modul mod_logio</a></li>
 <li><a href="mod/mod_lua.html">Apache-Modul mod_lua</a></li>
 <li><a href="mod/mod_macro.html">Apache-Modul mod_macro</a></li>
+<li><a href="mod/mod_md.html">Apache-Modul mod_md</a></li>
 <li><a href="mod/mod_mime.html">Apache-Modul mod_mime</a></li>
 <li><a href="mod/mod_mime_magic.html">Apache-Modul mod_mime_magic</a></li>
 <li><a href="mod/mod_negotiation.html">Apache-Modul mod_negotiation</a></li>
@@ -276,9 +282,12 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_proxy_fcgi.html">Apache-Modul mod_proxy_fcgi</a></li>
 <li><a href="mod/mod_proxy_fdpass.html">Apache-Modul mod_proxy_fdpass</a></li>
 <li><a href="mod/mod_proxy_ftp.html">Apache-Modul mod_proxy_ftp</a></li>
+<li><a href="mod/mod_proxy_hcheck.html">Apache-Modul mod_proxy_hcheck</a></li>
 <li><a href="mod/mod_proxy_html.html">Apache-Modul mod_proxy_html</a></li>
 <li><a href="mod/mod_proxy_http.html">Apache-Modul mod_proxy_http</a></li>
+<li><a href="mod/mod_proxy_http2.html">Apache-Modul mod_proxy_http2</a></li>
 <li><a href="mod/mod_proxy_scgi.html">Apache-Modul mod_proxy_scgi</a></li>
+<li><a href="mod/mod_proxy_uwsgi.html">Apache-Modul mod_proxy_uwsgi</a></li>
 <li><a href="mod/mod_proxy_wstunnel.html">Apache-Modul mod_proxy_wstunnel</a></li>
 <li><a href="mod/mod_ratelimit.html">Apache-Modul mod_ratelimit</a></li>
 <li><a href="mod/mod_reflector.html">Apache-Modul mod_reflector</a></li>
@@ -298,6 +307,7 @@ HPUX betreiben</a></li>
 <li><a href="mod/mod_socache_dbm.html">Apache-Modul mod_socache_dbm</a></li>
 <li><a href="mod/mod_socache_dc.html">Apache-Modul mod_socache_dc</a></li>
 <li><a href="mod/mod_socache_memcache.html">Apache-Modul mod_socache_memcache</a></li>
+<li><a href="mod/mod_socache_redis.html">Apache-Modul mod_socache_redis</a></li>
 <li><a href="mod/mod_socache_shmcb.html">Apache-Modul mod_socache_shmcb</a></li>
 <li><a href="mod/mod_speling.html">Apache-Modul mod_speling</a></li>
 <li><a href="mod/mod_ssl.html">Apache-Modul mod_ssl</a></li>
@@ -366,7 +376,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/sitemap.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2015 The Apache Software Foundation.<br />Lizenziert unter der <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Lizenziert unter der <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="./mod/">Module</a> | <a href="./mod/quickreference.html">Direktiven</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossar</a> | <a href="./sitemap.html">Seitenindex</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

@@ -146,61 +146,64 @@ static const char* really_last_key = "rewrite_really_last";
 #define REDIRECT_ENVVAR_SCRIPT_URL "REDIRECT_" ENVVAR_SCRIPT_URL
 #define ENVVAR_SCRIPT_URI "SCRIPT_URI"
 
-#define CONDFLAG_NONE               1<<0
-#define CONDFLAG_NOCASE             1<<1
-#define CONDFLAG_NOTMATCH           1<<2
-#define CONDFLAG_ORNEXT             1<<3
-#define CONDFLAG_NOVARY             1<<4
+#define CONDFLAG_NONE               (1<<0)
+#define CONDFLAG_NOCASE             (1<<1)
+#define CONDFLAG_NOTMATCH           (1<<2)
+#define CONDFLAG_ORNEXT             (1<<3)
+#define CONDFLAG_NOVARY             (1<<4)
 
-#define RULEFLAG_NONE               1<<0
-#define RULEFLAG_FORCEREDIRECT      1<<1
-#define RULEFLAG_LASTRULE           1<<2
-#define RULEFLAG_NEWROUND           1<<3
-#define RULEFLAG_CHAIN              1<<4
-#define RULEFLAG_IGNOREONSUBREQ     1<<5
-#define RULEFLAG_NOTMATCH           1<<6
-#define RULEFLAG_PROXY              1<<7
-#define RULEFLAG_PASSTHROUGH        1<<8
-#define RULEFLAG_QSAPPEND           1<<9
-#define RULEFLAG_NOCASE             1<<10
-#define RULEFLAG_NOESCAPE           1<<11
-#define RULEFLAG_NOSUB              1<<12
-#define RULEFLAG_STATUS             1<<13
-#define RULEFLAG_ESCAPEBACKREF      1<<14
-#define RULEFLAG_DISCARDPATHINFO    1<<15
-#define RULEFLAG_QSDISCARD          1<<16
-#define RULEFLAG_END                1<<17
-#define RULEFLAG_ESCAPENOPLUS       1<<18
+#define RULEFLAG_NONE               (1<<0)
+#define RULEFLAG_FORCEREDIRECT      (1<<1)
+#define RULEFLAG_LASTRULE           (1<<2)
+#define RULEFLAG_NEWROUND           (1<<3)
+#define RULEFLAG_CHAIN              (1<<4)
+#define RULEFLAG_IGNOREONSUBREQ     (1<<5)
+#define RULEFLAG_NOTMATCH           (1<<6)
+#define RULEFLAG_PROXY              (1<<7)
+#define RULEFLAG_PASSTHROUGH        (1<<8)
+#define RULEFLAG_QSAPPEND           (1<<9)
+#define RULEFLAG_NOCASE             (1<<10)
+#define RULEFLAG_NOESCAPE           (1<<11)
+#define RULEFLAG_NOSUB              (1<<12)
+#define RULEFLAG_STATUS             (1<<13)
+#define RULEFLAG_ESCAPEBACKREF      (1<<14)
+#define RULEFLAG_DISCARDPATHINFO    (1<<15)
+#define RULEFLAG_QSDISCARD          (1<<16)
+#define RULEFLAG_END                (1<<17)
+#define RULEFLAG_ESCAPENOPLUS       (1<<18)
+#define RULEFLAG_QSLAST             (1<<19)
 
 /* return code of the rewrite rule
  * the result may be escaped - or not
  */
-#define ACTION_NORMAL               1<<0
-#define ACTION_NOESCAPE             1<<1
-#define ACTION_STATUS               1<<2
+#define ACTION_NORMAL               (1<<0)
+#define ACTION_NOESCAPE             (1<<1)
+#define ACTION_STATUS               (1<<2)
 
 
-#define MAPTYPE_TXT                 1<<0
-#define MAPTYPE_DBM                 1<<1
-#define MAPTYPE_PRG                 1<<2
-#define MAPTYPE_INT                 1<<3
-#define MAPTYPE_RND                 1<<4
-#define MAPTYPE_DBD                 1<<5
-#define MAPTYPE_DBD_CACHE           1<<6
+#define MAPTYPE_TXT                 (1<<0)
+#define MAPTYPE_DBM                 (1<<1)
+#define MAPTYPE_PRG                 (1<<2)
+#define MAPTYPE_INT                 (1<<3)
+#define MAPTYPE_RND                 (1<<4)
+#define MAPTYPE_DBD                 (1<<5)
+#define MAPTYPE_DBD_CACHE           (1<<6)
 
-#define ENGINE_DISABLED             1<<0
-#define ENGINE_ENABLED              1<<1
+#define ENGINE_DISABLED             (1<<0)
+#define ENGINE_ENABLED              (1<<1)
 
-#define OPTION_NONE                 1<<0
-#define OPTION_INHERIT              1<<1
-#define OPTION_INHERIT_BEFORE       1<<2
-#define OPTION_NOSLASH              1<<3
-#define OPTION_ANYURI               1<<4
-#define OPTION_MERGEBASE            1<<5
-#define OPTION_INHERIT_DOWN         1<<6
-#define OPTION_INHERIT_DOWN_BEFORE  1<<7
-#define OPTION_IGNORE_INHERIT       1<<8
-#define OPTION_IGNORE_CONTEXT_INFO  1<<9
+#define OPTION_NONE                 (1<<0)
+#define OPTION_INHERIT              (1<<1)
+#define OPTION_INHERIT_BEFORE       (1<<2)
+#define OPTION_NOSLASH              (1<<3)
+#define OPTION_ANYURI               (1<<4)
+#define OPTION_MERGEBASE            (1<<5)
+#define OPTION_INHERIT_DOWN         (1<<6)
+#define OPTION_INHERIT_DOWN_BEFORE  (1<<7)
+#define OPTION_IGNORE_INHERIT       (1<<8)
+#define OPTION_IGNORE_CONTEXT_INFO  (1<<9)
+#define OPTION_LEGACY_PREFIX_DOCROOT (1<<10)
+#define OPTION_LONGOPT              (1<<11)
 
 #ifndef RAND_MAX
 #define RAND_MAX 32767
@@ -395,6 +398,7 @@ typedef struct {
     char        *perdir;
     backrefinfo briRR;
     backrefinfo briRC;
+    apr_pool_t *temp_pool;
 } rewrite_ctx;
 
 /*
@@ -418,6 +422,7 @@ static cache *cachep;
 static int proxy_available;
 
 /* Locks/Mutexes */
+static int rewrite_lock_needed = 0;
 static apr_global_mutex_t *rewrite_mapr_lock_acquire = NULL;
 static const char *rewritemap_mutex_type = "rewrite-map";
 
@@ -451,8 +456,7 @@ static void do_rewritelog(request_rec *r, int level, char *perdir,
     if (!APLOG_R_IS_LEVEL(r, APLOG_DEBUG + level))
         return;
 
-    rhost = ap_get_remote_host(r->connection, r->per_dir_config,
-                               REMOTE_NOLOOKUP, NULL);
+    rhost = ap_get_useragent_host(r, REMOTE_NOLOOKUP, NULL);
     rname = ap_get_remote_logname(r);
 
     for (redir=0, req=r; req->prev; req = req->prev) {
@@ -481,6 +485,7 @@ static void do_rewritelog(request_rec *r, int level, char *perdir,
 
     AP_REWRITE_LOG((uintptr_t)r, level, r->main ? 0 : 1, (char *)ap_get_server_name(r), logline);
 
+    /* Intentional no APLOGNO */
     ap_log_rerror(APLOG_MARK, APLOG_DEBUG + level, 0, r, "%s", logline);
 
     return;
@@ -525,7 +530,7 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
     switch (*uri++) {
     case 'a':
     case 'A':
-        if (!strncasecmp(uri, "jp://", 5)) {        /* ajp://    */
+        if (!ap_cstr_casecmpn(uri, "jp://", 5)) {        /* ajp://    */
           *sqs = 1;
           return 6;
         }
@@ -533,7 +538,7 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
 
     case 'b':
     case 'B':
-        if (!strncasecmp(uri, "alancer://", 10)) {   /* balancer:// */
+        if (!ap_cstr_casecmpn(uri, "alancer://", 10)) {   /* balancer:// */
           *sqs = 1;
           return 11;
         }
@@ -541,10 +546,10 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
 
     case 'f':
     case 'F':
-        if (!strncasecmp(uri, "tp://", 5)) {        /* ftp://    */
+        if (!ap_cstr_casecmpn(uri, "tp://", 5)) {        /* ftp://    */
             return 6;
         }
-        if (!strncasecmp(uri, "cgi://", 6)) {       /* fcgi://   */
+        if (!ap_cstr_casecmpn(uri, "cgi://", 6)) {       /* fcgi://   */
             *sqs = 1;
             return 7;
         }
@@ -552,33 +557,41 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
 
     case 'g':
     case 'G':
-        if (!strncasecmp(uri, "opher://", 8)) {     /* gopher:// */
+        if (!ap_cstr_casecmpn(uri, "opher://", 8)) {     /* gopher:// */
             return 9;
         }
         break;
 
     case 'h':
     case 'H':
-        if (!strncasecmp(uri, "ttp://", 6)) {       /* http://   */
+        if (!ap_cstr_casecmpn(uri, "ttp://", 6)) {       /* http://   */
             *sqs = 1;
             return 7;
         }
-        else if (!strncasecmp(uri, "ttps://", 7)) { /* https://  */
+        else if (!ap_cstr_casecmpn(uri, "ttps://", 7)) { /* https://  */
             *sqs = 1;
             return 8;
+        }
+        else if (!ap_cstr_casecmpn(uri, "2://", 4)) {    /* h2://     */
+            *sqs = 1;
+            return 5;
+        }
+        else if (!ap_cstr_casecmpn(uri, "2c://", 5)) {   /* h2c://    */
+            *sqs = 1;
+            return 6;
         }
         break;
 
     case 'l':
     case 'L':
-        if (!strncasecmp(uri, "dap://", 6)) {       /* ldap://   */
+        if (!ap_cstr_casecmpn(uri, "dap://", 6)) {       /* ldap://   */
             return 7;
         }
         break;
 
     case 'm':
     case 'M':
-        if (!strncasecmp(uri, "ailto:", 6)) {       /* mailto:   */
+        if (!ap_cstr_casecmpn(uri, "ailto:", 6)) {       /* mailto:   */
             *sqs = 1;
             return 7;
         }
@@ -586,17 +599,17 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
 
     case 'n':
     case 'N':
-        if (!strncasecmp(uri, "ews:", 4)) {         /* news:     */
+        if (!ap_cstr_casecmpn(uri, "ews:", 4)) {         /* news:     */
             return 5;
         }
-        else if (!strncasecmp(uri, "ntp://", 6)) {  /* nntp://   */
+        else if (!ap_cstr_casecmpn(uri, "ntp://", 6)) {  /* nntp://   */
             return 7;
         }
         break;
 
     case 's':
     case 'S':
-        if (!strncasecmp(uri, "cgi://", 6)) {       /* scgi://   */
+        if (!ap_cstr_casecmpn(uri, "cgi://", 6)) {       /* scgi://   */
             *sqs = 1;
             return 7;
         }
@@ -604,11 +617,11 @@ static unsigned is_absolute_uri(char *uri, int *supportsqs)
 
     case 'w':
     case 'W':
-        if (!strncasecmp(uri, "s://", 4)) {        /* ws://     */
+        if (!ap_cstr_casecmpn(uri, "s://", 4)) {        /* ws://     */
             *sqs = 1;
             return 5;
         }
-        else if (!strncasecmp(uri, "ss://", 5)) {  /* wss://    */
+        else if (!ap_cstr_casecmpn(uri, "ss://", 5)) {  /* wss://    */
             *sqs = 1;
             return 6;
         }
@@ -716,7 +729,7 @@ static char *escape_absolute_uri(apr_pool_t *p, char *uri, unsigned scheme)
          *               [dn ["?" [attributes] ["?" [scope]
          *               ["?" [filter] ["?" extensions]]]]]]
          */
-        if (!strncasecmp(uri, "ldap", 4)) {
+        if (!ap_cstr_casecmpn(uri, "ldap", 4)) {
             char *token[5];
             int c = 0;
 
@@ -752,7 +765,8 @@ static char *escape_absolute_uri(apr_pool_t *p, char *uri, unsigned scheme)
  * split out a QUERY_STRING part from
  * the current URI string
  */
-static void splitout_queryargs(request_rec *r, int qsappend, int qsdiscard)
+static void splitout_queryargs(request_rec *r, int qsappend, int qsdiscard, 
+                               int qslast)
 {
     char *q;
     int split;
@@ -771,7 +785,8 @@ static void splitout_queryargs(request_rec *r, int qsappend, int qsdiscard)
         rewritelog((r, 2, NULL, "discarding query string"));
     }
 
-    q = ap_strchr(r->filename, '?');
+    q = qslast ? ap_strrchr(r->filename, '?') : ap_strchr(r->filename, '?');
+
     if (q != NULL) {
         char *olduri;
         apr_size_t len;
@@ -779,18 +794,23 @@ static void splitout_queryargs(request_rec *r, int qsappend, int qsdiscard)
         olduri = apr_pstrdup(r->pool, r->filename);
         *q++ = '\0';
         if (qsappend) {
-            r->args = apr_pstrcat(r->pool, q, "&", r->args, NULL);
+            if (*q) { 
+                r->args = apr_pstrcat(r->pool, q, "&" , r->args, NULL);
+            }
         }
         else {
             r->args = apr_pstrdup(r->pool, q);
         }
 
-        len = strlen(r->args);
-        if (!len) {
-            r->args = NULL;
-        }
-        else if (r->args[len-1] == '&') {
-            r->args[len-1] = '\0';
+        if (r->args) { 
+           len = strlen(r->args);
+      
+           if (!len) {
+               r->args = NULL;
+           }
+           else if (r->args[len-1] == '&') {
+               r->args[len-1] = '\0';
+           }
         }
 
         rewritelog((r, 3, NULL, "split uri=%s -> uri=%s, args=%s", olduri,
@@ -811,7 +831,7 @@ static void reduce_uri(request_rec *r)
     cp = (char *)ap_http_scheme(r);
     l  = strlen(cp);
     if (   strlen(r->filename) > l+3
-        && strncasecmp(r->filename, cp, l) == 0
+        && ap_cstr_casecmpn(r->filename, cp, l) == 0
         && r->filename[l]   == ':'
         && r->filename[l+1] == '/'
         && r->filename[l+2] == '/' ) {
@@ -854,8 +874,15 @@ static void reduce_uri(request_rec *r)
 
         /* now check whether we could reduce it to a local path... */
         if (ap_matches_request_vhost(r, host, port)) {
+            rewrite_server_conf *conf = 
+                ap_get_module_config(r->server->module_config, &rewrite_module);
             rewritelog((r, 3, NULL, "reduce %s -> %s", r->filename, url));
             r->filename = apr_pstrdup(r->pool, url);
+
+            /* remember that the uri was reduced */
+            if(!(conf->options & OPTION_LEGACY_PREFIX_DOCROOT)) {
+                apr_table_setn(r->notes, "mod_rewrite_uri_reduced", "true");
+            }
         }
     }
 
@@ -1782,7 +1809,10 @@ static const char *lookup_header(const char *name, rewrite_ctx *ctx)
 {
     const char *val = apr_table_get(ctx->r->headers_in, name);
 
-    if (val) {
+    /* Skip the 'Vary: Host' header combination
+     * as indicated in rfc7231 section-7.1.4
+     */
+    if (val && strcasecmp(name, "Host") != 0) {
         ctx->vary_this = ctx->vary_this
                          ? apr_pstrcat(ctx->r->pool, ctx->vary_this, ", ",
                                        name, NULL)
@@ -2067,8 +2097,7 @@ static char *lookup_variable(char *var, rewrite_ctx *ctx)
                     return apr_psprintf(r->pool, "%u", ap_get_server_port(r));
                 }
                 else if (var[7] == 'H' && !strcmp(var, "REMOTE_HOST")) {
-                    result = ap_get_remote_host(r->connection,r->per_dir_config,
-                                                REMOTE_NAME, NULL);
+                    result = ap_get_useragent_host(r, REMOTE_NAME, NULL);
                 }
                 else if (!strcmp(var, "REMOTE_PORT")) {
                     return apr_itoa(r->pool, r->useragent_addr->port);
@@ -2263,14 +2292,13 @@ static APR_INLINE char *find_char_in_curlies(char *s, int c)
  * are interpreted by a later expansion, producing results that
  * were not intended by the administrator.
  */
-static char *do_expand(char *input, rewrite_ctx *ctx, rewriterule_entry *entry)
+static char *do_expand(char *input, rewrite_ctx *ctx, rewriterule_entry *entry, apr_pool_t *pool)
 {
     result_list *result, *current;
     result_list sresult[SMALL_EXPANSION];
     unsigned spc = 0;
     apr_size_t span, inputlen, outlen;
     char *p, *c;
-    apr_pool_t *pool = ctx->r->pool;
 
     span = strcspn(input, "\\$%");
     inputlen = strlen(input);
@@ -2375,10 +2403,10 @@ static char *do_expand(char *input, rewrite_ctx *ctx, rewriterule_entry *entry)
                     }
 
                     /* reuse of key variable as result */
-                    key = lookup_map(ctx->r, map, do_expand(key, ctx, entry));
+                    key = lookup_map(ctx->r, map, do_expand(key, ctx, entry, pool));
 
                     if (!key && dflt && *dflt) {
-                        key = do_expand(dflt, ctx, entry);
+                        key = do_expand(dflt, ctx, entry, pool);
                     }
 
                     if (key) {
@@ -2476,7 +2504,7 @@ static void do_expand_env(data_item *env, rewrite_ctx *ctx)
     char *name, *val;
 
     while (env) {
-        name = do_expand(env->data, ctx, NULL);
+        name = do_expand(env->data, ctx, NULL, ctx->r->pool);
         if (*name == '!') {
             name++;
             apr_table_unset(ctx->r->subprocess_env, name);
@@ -2575,14 +2603,14 @@ static void add_cookie(request_rec *r, char *s)
                                  : NULL,
                                  expires ? (exp_time ? exp_time : "")
                                  : NULL,
-                                 (secure && (!strcasecmp(secure, "true")
+                                 (secure && (!ap_cstr_casecmp(secure, "true")
                                              || !strcmp(secure, "1")
-                                             || !strcasecmp(secure,
+                                             || !ap_cstr_casecmp(secure,
                                                             "secure"))) ?
                                   "; secure" : NULL,
-                                 (httponly && (!strcasecmp(httponly, "true")
+                                 (httponly && (!ap_cstr_casecmp(httponly, "true")
                                                || !strcmp(httponly, "1")
-                                               || !strcasecmp(httponly,
+                                               || !ap_cstr_casecmp(httponly,
                                                               "HttpOnly"))) ?
                                   "; HttpOnly" : NULL,
                                  NULL);
@@ -2603,7 +2631,7 @@ static void add_cookie(request_rec *r, char *s)
 static void do_expand_cookie(data_item *cookie, rewrite_ctx *ctx)
 {
     while (cookie) {
-        add_cookie(ctx->r, do_expand(cookie->data, ctx, NULL));
+        add_cookie(ctx->r, do_expand(cookie->data, ctx, NULL, ctx->r->pool));
         cookie = cookie->next;
     }
 
@@ -2664,9 +2692,6 @@ static apr_status_t rewritelock_create(server_rec *s, apr_pool_t *p)
     apr_status_t rc;
 
     /* create the lockfile */
-    /* XXX See if there are any rewrite map programs before creating
-     * the mutex.
-     */
     rc = ap_global_mutex_create(&rewrite_mapr_lock_acquire, NULL,
                                 rewritemap_mutex_type, NULL, s, p, 0);
     if (rc != APR_SUCCESS) {
@@ -3011,6 +3036,12 @@ static const char *cmd_rewriteoptions(cmd_parms *cmd,
         else if (!strcasecmp(w, "ignorecontextinfo")) {
             options |= OPTION_IGNORE_CONTEXT_INFO;
         }
+        else if (!strcasecmp(w, "legacyprefixdocroot")) {
+            options |= OPTION_LEGACY_PREFIX_DOCROOT;
+        }
+        else if (!strcasecmp(w, "LongURLOptimization")) {
+            options |= OPTION_LONGOPT;
+        }
         else {
             return apr_pstrcat(cmd->pool, "RewriteOptions: unknown option '",
                                w, "'", NULL);
@@ -3147,6 +3178,8 @@ static const char *cmd_rewritemap(cmd_parms *cmd, void *dconf, const char *a1,
 
         newmap->type      = MAPTYPE_PRG;
         newmap->checkfile = newmap->argv[0];
+        rewrite_lock_needed = 1;
+
         if (a3) {
             char *tok_cntx;
             newmap->user = apr_strtok(apr_pstrdup(cmd->pool, a3), ":", &tok_cntx);
@@ -3639,6 +3672,9 @@ static const char *cmd_rewriterule_setflag(apr_pool_t *p, void *_cfg,
         } else if ( !strcasecmp(key, "SD")
                 || !strcasecmp(key, "sdiscard") ) {       /* qsdiscard */
             cfg->flags |= RULEFLAG_QSDISCARD;
+        } else if ( !strcasecmp(key, "SL")
+                || !strcasecmp(key, "slast") ) {          /* qslast */
+            cfg->flags |= RULEFLAG_QSLAST;
         }
         else {
             ++error;
@@ -3838,7 +3874,7 @@ static APR_INLINE int compare_lexicography(char *a, char *b)
 /*
  * Apply a single rewriteCond
  */
-static int apply_rewrite_cond(rewritecond_entry *p, rewrite_ctx *ctx)
+static int apply_rewrite_cond(rewritecond_entry *p, rewrite_ctx *ctx, apr_pool_t *pool)
 {
     char *input = NULL;
     apr_finfo_t sb;
@@ -3848,7 +3884,7 @@ static int apply_rewrite_cond(rewritecond_entry *p, rewrite_ctx *ctx)
     int basis;
 
     if (p->ptype != CONDPAT_AP_EXPR)
-        input = do_expand(p->input, ctx, NULL);
+        input = do_expand(p->input, ctx, NULL, pool);
 
     switch (p->ptype) {
     case CONDPAT_FILE_EXISTS:
@@ -4012,7 +4048,7 @@ static APR_INLINE void force_type_handler(rewriterule_entry *p,
     char *expanded;
 
     if (p->forced_mimetype) {
-        expanded = do_expand(p->forced_mimetype, ctx, p);
+        expanded = do_expand(p->forced_mimetype, ctx, p, ctx->r->pool);
 
         if (*expanded) {
             ap_str_tolower(expanded);
@@ -4026,7 +4062,7 @@ static APR_INLINE void force_type_handler(rewriterule_entry *p,
     }
 
     if (p->forced_handler) {
-        expanded = do_expand(p->forced_handler, ctx, p);
+        expanded = do_expand(p->forced_handler, ctx, p, ctx->r->pool);
 
         if (*expanded) {
             ap_str_tolower(expanded);
@@ -4114,7 +4150,7 @@ static int apply_rewrite_rule(rewriterule_entry *p, rewrite_ctx *ctx)
     /* Ok, we already know the pattern has matched, but we now
      * additionally have to check for all existing preconditions
      * (RewriteCond) which have to be also true. We do this at
-     * this very late stage to avoid unnessesary checks which
+     * this very late stage to avoid unnecessary checks which
      * would slow down the rewriting engine.
      */
     rewriteconds = p->rewriteconds;
@@ -4123,7 +4159,7 @@ static int apply_rewrite_rule(rewriterule_entry *p, rewrite_ctx *ctx)
     for (i = 0; i < rewriteconds->nelts; ++i) {
         rewritecond_entry *c = &conds[i];
 
-        rc = apply_rewrite_cond(c, ctx);
+        rc = apply_rewrite_cond(c, ctx,  ctx->temp_pool ? ctx->temp_pool : r->pool);
         /*
          * Reset vary_this if the novary flag is set for this condition.
          */
@@ -4145,6 +4181,9 @@ static int apply_rewrite_rule(rewriterule_entry *p, rewrite_ctx *ctx)
             }
         }
         else if (!rc) {
+            if (ctx->temp_pool) { 
+                apr_pool_clear(ctx->temp_pool);
+            }
             return 0;
         }
 
@@ -4162,7 +4201,7 @@ static int apply_rewrite_rule(rewriterule_entry *p, rewrite_ctx *ctx)
 
     /* expand the result */
     if (!(p->flags & RULEFLAG_NOSUB)) {
-        newuri = do_expand(p->output, ctx, p);
+        newuri = do_expand(p->output, ctx, p, ctx->r->pool);
         rewritelog((r, 2, ctx->perdir, "rewrite '%s' -> '%s'", ctx->uri,
                     newuri));
     }
@@ -4192,7 +4231,9 @@ static int apply_rewrite_rule(rewriterule_entry *p, rewrite_ctx *ctx)
         r->path_info = NULL;
     }
 
-    splitout_queryargs(r, p->flags & RULEFLAG_QSAPPEND, p->flags & RULEFLAG_QSDISCARD);
+    splitout_queryargs(r, p->flags & RULEFLAG_QSAPPEND, 
+                          p->flags & RULEFLAG_QSDISCARD, 
+                          p->flags & RULEFLAG_QSLAST);
 
     /* Add the previously stripped per-directory location prefix, unless
      * (1) it's an absolute URL path and
@@ -4298,10 +4339,20 @@ static int apply_rewrite_list(request_rec *r, apr_array_header_t *rewriterules,
     int s;
     rewrite_ctx *ctx;
     int round = 1;
+    rewrite_perdir_conf *dconf = (rewrite_perdir_conf *)
+                                 ap_get_module_config(r->per_dir_config,
+                                                      &rewrite_module);
 
     ctx = apr_palloc(r->pool, sizeof(*ctx));
     ctx->perdir = perdir;
     ctx->r = r;
+
+    if (dconf->options & OPTION_LONGOPT) { 
+        apr_pool_create(&(ctx->temp_pool), r->pool);
+    }
+    else { 
+        ctx->temp_pool = NULL;
+    }
 
     /*
      *  Iterate over all existing rules
@@ -4330,6 +4381,17 @@ static int apply_rewrite_list(request_rec *r, apr_array_header_t *rewriterules,
         rc = apply_rewrite_rule(p, ctx);
 
         if (rc) {
+
+            /* Catch looping rules with pathinfo growing unbounded */
+            if ( strlen( r->filename ) > 2*r->server->limit_req_line ) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+                              "RewriteRule '%s' and URI '%s' "
+                              "exceeded maximum length (%d)", 
+                              p->pattern, r->uri, 2*r->server->limit_req_line );
+                r->status = HTTP_INTERNAL_SERVER_ERROR;
+                return ACTION_STATUS;
+            }
+
             /* Regardless of what we do next, we've found a match. Check to see
              * if any of the request header fields were involved, and add them
              * to the Vary field of the response.
@@ -4440,6 +4502,7 @@ static int pre_config(apr_pool_t *pconf,
 {
     APR_OPTIONAL_FN_TYPE(ap_register_rewrite_mapfunc) *map_pfn_register;
 
+    rewrite_lock_needed = 0; 
     ap_mutex_register(pconf, rewritemap_mutex_type, NULL, APR_LOCK_DEFAULT, 0);
 
     /* register int: rewritemap handlers */
@@ -4465,13 +4528,15 @@ static int post_config(apr_pool_t *p,
     /* check if proxy module is available */
     proxy_available = (ap_find_linked_module("mod_proxy.c") != NULL);
 
-    rv = rewritelock_create(s, p);
-    if (rv != APR_SUCCESS) {
-        return HTTP_INTERNAL_SERVER_ERROR;
-    }
+    if (rewrite_lock_needed) {
+        rv = rewritelock_create(s, p);
+        if (rv != APR_SUCCESS) {
+            return HTTP_INTERNAL_SERVER_ERROR;
+        }
 
-    apr_pool_cleanup_register(p, (void *)s, rewritelock_remove,
-                              apr_pool_cleanup_null);
+        apr_pool_cleanup_register(p, (void *)s, rewritelock_remove,
+                apr_pool_cleanup_null);
+    }
 
     /* if we are not doing the initial config, step through the servers and
      * open the RewriteMap prg:xxx programs,
@@ -4536,6 +4601,7 @@ static int hook_uri2file(request_rec *r)
     unsigned int port;
     int rulestatus;
     void *skipdata;
+    const char *oargs;
 
     /*
      *  retrieve the config structures
@@ -4584,6 +4650,12 @@ static int hook_uri2file(request_rec *r)
                     r->uri));
         return DECLINED;
     }
+
+    /*
+     *  remember the original query string for later check, since we don't
+     *  want to apply URL-escaping when no substitution has changed it.
+     */
+    oargs = r->args;
 
     /*
      *  add the SCRIPT_URL variable to the env. this is a bit complicated
@@ -4719,11 +4791,21 @@ static int hook_uri2file(request_rec *r)
 
             /* append the QUERY_STRING part */
             if (r->args) {
+                char *escaped_args = NULL;
+                int noescape = (rulestatus == ACTION_NOESCAPE ||
+                                (oargs && !strcmp(r->args, oargs)));
+
                 r->filename = apr_pstrcat(r->pool, r->filename, "?",
-                                          (rulestatus == ACTION_NOESCAPE)
+                                          noescape
                                             ? r->args
-                                            : ap_escape_uri(r->pool, r->args),
+                                            : (escaped_args =
+                                               ap_escape_uri(r->pool, r->args)),
                                           NULL);
+
+                rewritelog((r, 1, NULL, "%s %s to query string for redirect %s",
+                            noescape ? "copying" : "escaping",
+                            r->args ,
+                            noescape ? "" : escaped_args));
             }
 
             /* determine HTTP redirect response code */
@@ -4756,6 +4838,7 @@ static int hook_uri2file(request_rec *r)
         }
         else {
             /* it was finally rewritten to a local path */
+            const char *uri_reduced = NULL;
 
             /* expand "/~user" prefix */
 #if APR_HAS_USER
@@ -4791,7 +4874,12 @@ static int hook_uri2file(request_rec *r)
              * because we only do stat() on the first directory
              * and this gets cached by the kernel for along time!
              */
-            if (!prefix_stat(r->filename, r->pool)) {
+
+            if(!(conf->options & OPTION_LEGACY_PREFIX_DOCROOT)) {
+                uri_reduced = apr_table_get(r->notes, "mod_rewrite_uri_reduced");
+            }
+
+            if (!prefix_stat(r->filename, r->pool) || uri_reduced != NULL) {
                 int res;
                 char *tmp = r->uri;
 
@@ -4889,7 +4977,7 @@ static int hook_fixup(request_rec *r)
 
     /*
      *  Do the Options check after engine check, so
-     *  the user is able to explicitely turn RewriteEngine Off.
+     *  the user is able to explicitly turn RewriteEngine Off.
      */
     if (!(ap_allow_options(r) & (OPT_SYM_LINKS | OPT_SYM_OWNER))) {
         /* FollowSymLinks is mandatory! */
@@ -4904,7 +4992,7 @@ static int hook_fixup(request_rec *r)
     /*
      *  remember the current filename before rewriting for later check
      *  to prevent deadlooping because of internal redirects
-     *  on final URL/filename which can be equal to the inital one.
+     *  on final URL/filename which can be equal to the initial one.
      *  also, we'll restore original r->filename if we decline this
      *  request
      */
@@ -5140,6 +5228,8 @@ static int hook_fixup(request_rec *r)
                     }
                 }
             }
+
+            apr_table_setn(r->notes, "redirect-keeps-vary", "");
 
             /* now initiate the internal redirect */
             rewritelog((r, 1, dconf->directory, "internal redirect with %s "

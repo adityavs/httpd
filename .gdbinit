@@ -330,10 +330,26 @@ document dump_process_rec
     Print process_rec info
 end
 
+define dump_server_addr_recs
+    set $sa_ = $arg0
+    set $san_ = 0
+    while $sa_
+      ### need to call apr_sockaddr_info_getbuf to print ->host_addr properly
+      ### which is a PITA since we need a buffer :(
+      printf " addr#%d: vhost=%s -> :%d\n", $san_++, $sa_->virthost, $sa_->host_port
+      set $sa_ = $sa_->next
+    end
+end
+document dump_server_addr_recs
+    Print server_addr_rec info
+end
+
+
 define dump_server_rec
     set $s = $arg0
-    printf "name=%s:%d\n", \
-            $s->server_hostname, $s->port
+    printf "name=%s:%d (0x%lx)\n", \
+            $s->server_hostname, $s->port, $s
+    dump_server_addr_recs $s->addrs
     dump_process_rec($s->process)
 end
 document dump_server_rec
@@ -374,8 +390,8 @@ define dump_allocator
         if $node != 0
             printf " #%2d: ", $i
             while $node != 0
-                printf "%d, ", 4096 << $node->index
-                set $kb = $kb + (4 << $node->index)
+                printf "%d, ", ($node->index + 1) << 12
+                set $kb = $kb + (($node->index + 1) << 2)
                 set $node = $node->next
             end
             printf "ends.\n"
@@ -396,7 +412,7 @@ define dump_one_pool
     set $node = $arg0->active
     set $done = 0
     while $done == 0
-        set $size = $size + (4096 << $node->index)
+        set $size = $size + (($node->index + 1) << 12)
         set $free = $free + ($node->endp - $node->first_avail)
         set $nodes = $nodes + 1
         set $node = $node->next
@@ -404,7 +420,108 @@ define dump_one_pool
             set $done = 1
         end
     end
-    printf "Pool '%s' [%p]: %d/%d free (%d blocks)\n", $p->tag, $p, $free, $size, $nodes
+    printf "Pool '"
+    if $p->tag
+        printf "%s", $p->tag
+    else
+        printf "no tag"
+    end
+    printf "' [%p]: %d/%d free (%d blocks)\n", $p, $free, $size, $nodes
+end
+
+define dump_all_pools
+    set $root = $arg0
+    while $root->parent
+        set $root = $root->parent
+    end
+    dump_pool_and_children $root
+end
+document dump_all_pools
+    Dump the whole pool hierarchy starting from apr_global_pool. Requires an arbitrary pool as starting parameter.
+end
+
+python
+
+from __future__ import print_function
+
+class DumpPoolAndChilds (gdb.Command):
+  """Dump the whole pool hierarchy starting from the given pool."""
+
+  def __init__ (self):
+    super (DumpPoolAndChilds, self).__init__ ("dump_pool_and_children", gdb.COMMAND_USER)
+
+  def _allocator_free_blocks(self, alloc):
+    salloc = "%s" % (alloc)
+    if self.total_free_blocks.get(salloc) != None:
+      return self.total_free_blocks[salloc]
+    i = 0
+    dalloc = alloc.dereference()
+    max =(dalloc['free'].type.sizeof)/(dalloc['free'][0].type.sizeof)
+    kb = 0
+    while i < max:
+      node = dalloc['free'][i]
+      if node != 0:
+        while node != 0:
+          noded = node.dereference()
+          kb = kb + ((int(noded['index']) + 1) << 2)
+          node = noded['next']
+      i = i + 1
+    self.total_free_blocks[salloc] = kb
+    return kb
+
+
+  def _dump_one_pool(self, arg):
+    size = 0
+    free = 0
+    nodes = 0
+    darg = arg.dereference()
+    active = darg['active']
+    node = active
+    done = 0
+    while done == 0:
+      noded = node.dereference()
+      size = size + ((int(noded['index']) + 1) << 12)
+      free = free + (noded['endp'] - noded['first_avail'])
+      nodes = nodes + 1
+      node = noded['next']
+      if node == active:
+        done = 1
+    if darg['tag'] != 0:
+      tag = darg['tag'].string()
+    else:
+      tag = "No tag"
+    print("Pool '%s' [%s]: %d/%d free (%d blocks) allocator: %s free blocks in allocator: %i kiB" % (tag, arg, free, size, nodes, darg['allocator'], self._allocator_free_blocks(darg['allocator'])))
+    self.free = self.free + free
+    self.size = self.size + size
+    self.nodes = self.nodes + nodes
+
+  def _dump(self, arg, depth):
+    pool = arg
+    print("%*c" % (depth * 4 + 1, " "), end="")
+    self._dump_one_pool(pool)
+    if pool['child'] != 0:
+      self._dump(pool['child'], depth + 1)
+    s = pool['sibling']
+    if s != 0:
+      self._dump(s, depth)
+
+  def invoke (self, arg, from_tty):
+    pool = gdb.parse_and_eval(arg)
+    self.free = 0
+    self.size = 0
+    self.nodes = 0
+    self.total_free_blocks = {}
+    self._dump(pool, 0)
+    print("Total %d/%d free (%d blocks)" % (self.free, self.size, self.nodes))
+    sum = 0
+    for key in self.total_free_blocks:
+      sum = sum + self.total_free_blocks[key]
+    print("Total free allocator blocks: %i kiB" % (sum))
+
+DumpPoolAndChilds ()
+end
+document dump_pool_and_children
+    Dump the whole pool hierarchy starting from the given pool.
 end
 
 # Set sane defaults for common signals:

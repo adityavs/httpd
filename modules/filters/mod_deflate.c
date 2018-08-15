@@ -123,8 +123,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
     if (encoding && *encoding) {
 
         /* check the usual/simple case first */
-        if (!strcasecmp(encoding, "gzip")
-            || !strcasecmp(encoding, "x-gzip")) {
+        if (!ap_cstr_casecmp(encoding, "gzip")
+            || !ap_cstr_casecmp(encoding, "x-gzip")) {
             found = 1;
             if (hdrs) {
                 apr_table_unset(hdrs, "Content-Encoding");
@@ -142,8 +142,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
             for(;;) {
                 char *token = ap_strrchr(new_encoding, ',');
                 if (!token) {        /* gzip:identity or other:identity */
-                    if (!strcasecmp(new_encoding, "gzip")
-                        || !strcasecmp(new_encoding, "x-gzip")) {
+                    if (!ap_cstr_casecmp(new_encoding, "gzip")
+                        || !ap_cstr_casecmp(new_encoding, "x-gzip")) {
                         found = 1;
                         if (hdrs) {
                             apr_table_unset(hdrs, "Content-Encoding");
@@ -155,8 +155,8 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
                     break; /* seen all tokens */
                 }
                 for (ptr=token+1; apr_isspace(*ptr); ++ptr);
-                if (!strcasecmp(ptr, "gzip")
-                    || !strcasecmp(ptr, "x-gzip")) {
+                if (!ap_cstr_casecmp(ptr, "gzip")
+                    || !ap_cstr_casecmp(ptr, "x-gzip")) {
                     *token = '\0';
                     if (hdrs) {
                         apr_table_setn(hdrs, "Content-Encoding", new_encoding);
@@ -166,7 +166,7 @@ static int check_gzip(request_rec *r, apr_table_t *hdrs1, apr_table_t *hdrs2)
                     }
                     found = 1;
                 }
-                else if (!ptr[0] || !strcasecmp(ptr, "identity")) {
+                else if (!ptr[0] || !ap_cstr_casecmp(ptr, "identity")) {
                     *token = '\0';
                     continue; /* strip the token and find the next one */
                 }
@@ -642,18 +642,19 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
 
         /*
          * Only work on main request, not subrequests,
-         * that are not a 204 response with no content
+         * that are not responses with no content (204/304),
          * and are not tagged with the no-gzip env variable
          * and not a partial response to a Range request.
          */
-        if ((r->main != NULL) || (r->status == HTTP_NO_CONTENT) ||
+        if ((r->main != NULL) ||
+            AP_STATUS_IS_HEADER_ONLY(r->status) ||
             apr_table_get(r->subprocess_env, "no-gzip") ||
             apr_table_get(r->headers_out, "Content-Range")
            ) {
             if (APLOG_R_IS_LEVEL(r, APLOG_TRACE1)) {
                 const char *reason =
                     (r->main != NULL)                           ? "subrequest" :
-                    (r->status == HTTP_NO_CONTENT)              ? "no content" :
+                    AP_STATUS_IS_HEADER_ONLY(r->status)         ? "no content" :
                     apr_table_get(r->subprocess_env, "no-gzip") ? "no-gzip" :
                     "content-range";
                 ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,
@@ -744,7 +745,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
             }
 
             token = ap_get_token(r->pool, &accepts, 0);
-            while (token && token[0] && strcasecmp(token, "gzip")) {
+            while (token && token[0] && ap_cstr_casecmp(token, "gzip")) {
                 /* skip parameters, XXX: ;q=foo evaluation? */
                 while (*accepts == ';') {
                     ++accepts;
@@ -818,7 +819,7 @@ static apr_status_t deflate_out_filter(ap_filter_t *f,
          */
 
         /* If the entire Content-Encoding is "identity", we can replace it. */
-        if (!encoding || !strcasecmp(encoding, "identity")) {
+        if (!encoding || !ap_cstr_casecmp(encoding, "identity")) {
             apr_table_setn(r->headers_out, "Content-Encoding", "gzip");
         }
         else {
@@ -1532,11 +1533,12 @@ static apr_status_t inflate_out_filter(ap_filter_t *f,
 
         /*
          * Only work on main request, not subrequests,
-         * that are not a 204 response with no content
+         * that are not responses with no content (204/304),
          * and not a partial response to a Range request,
          * and only when Content-Encoding ends in gzip.
          */
-        if (!ap_is_initial_req(r) || (r->status == HTTP_NO_CONTENT) ||
+        if (!ap_is_initial_req(r) ||
+            AP_STATUS_IS_HEADER_ONLY(r->status) ||
             (apr_table_get(r->headers_out, "Content-Range") != NULL) ||
             (check_gzip(r, r->headers_out, r->err_headers_out) == 0)
            ) {

@@ -40,12 +40,12 @@
 
 <section id="usage"><title>Usage</title>
 
-<p>Macros are defined using <directive
+<p>Macros are defined using <directive module="mod_macro"
 type="section">Macro</directive> blocks, which contain the portion of
 your configuration that needs to be repeated, complete with variables
 for those parts that will need to be substituted.</p>
 
-<p>For example,  you might use a macro to define a <directive
+<p>For example, you might use a macro to define a <directive module="core"
 type="section">VirtualHost</directive> block, in order to define
 multiple similar virtual hosts:</p>
 
@@ -76,13 +76,14 @@ Use VHost apache apache.org
 UndefMacro VHost
 </highlight>
 
-<p>At server startup time, each of these <directive>Use</directive>
+<p>At server startup time, each of these <directive module="mod_macro">Use</directive>
 invocations would be expanded into a full virtualhost, as
-described by the <directive>Macro</directive> definition.</p>
+described by the <directive module="mod_macro" type="section">Macro</directive>
+definition.</p>
 
-<p>The <directive>UndefMacro</directive> directive is used so that later
-macros using the same variable names don't result in conflicting
-definitions.</p>
+<p>The <directive module="mod_macro">UndefMacro</directive> directive is
+used so that later macros using the same variable names don't result in
+conflicting definitions.</p>
 
 <p>A more elaborate version of this example may be seen below in the
 Examples section.</p>
@@ -195,10 +196,11 @@ UndefMacro DirGroup
 <context>virtual host</context>
 <context>directory</context>
 </contextlist>
+<override>All</override>
 
 <usage>
-    <p>The <directive>Macro</directive> directive controls the definition of
-    a macro within the server runtime configuration files.
+    <p>The <directive type="section">Macro</directive> directive controls the
+    definition of a macro within the server runtime configuration files.
     The first argument is the name of the macro.
     Other arguments are parameters to the macro. It is good practice to prefix
     parameter names with any of '<code>$%@</code>', and not macro names
@@ -228,6 +230,7 @@ UndefMacro DirGroup
 <context>virtual host</context>
 <context>directory</context>
 </contextlist>
+<override>All</override>
 
 <usage>
     <p>The <directive>Use</directive> directive controls the use of a macro.
@@ -264,6 +267,7 @@ Require ip 192.54.172.0/24 192.54.148.0/24
 <context>virtual host</context>
 <context>directory</context>
 </contextlist>
+<override>All</override>
 
 <usage>
     <p>The <directive>UndefMacro</directive> directive undefines a macro
@@ -274,6 +278,36 @@ UndefMacro LocalAccessPolicy
 UndefMacro RestrictedAccessPolicy
     </highlight>
 </usage>
+</directivesynopsis>
+
+<!-- MacroIgnoreEmptyArg -->
+<directivesynopsis>
+<name>MacroIgnoreEmptyArgs</name>
+<description>Ignore warnings, and does not log, about empty Macro argument(s)</description>
+
+<syntax>MacroIgnoreEmptyArgs</syntax>
+<contextlist>
+<context>server config</context>
+<context>virtual host</context>
+<context>directory</context>
+</contextlist>
+<override>All</override>
+
+</directivesynopsis>
+
+<!-- MacroIgnoreBadNesting -->
+<directivesynopsis>
+<name>MacroIgnoreBadNesting</name>
+<description>Ignore warnings, and does not log, about bad nesting of Macros</description>
+
+<syntax>MacroIgnoreBadNesting</syntax>
+<contextlist>
+<context>server config</context>
+<context>virtual host</context>
+<context>directory</context>
+</contextlist>
+<override>All</override>
+
 </directivesynopsis>
 
 </modulesynopsis>

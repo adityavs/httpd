@@ -80,9 +80,9 @@ typedef struct
 module AP_MODULE_DECLARE_DATA info_module;
 
 /* current file name when doing -DDUMP_CONFIG */
-const char *dump_config_fn_info;
+static const char *dump_config_fn_info;
 /* file handle when doing -DDUMP_CONFIG */
-apr_file_t *out = NULL;
+static apr_file_t *out = NULL;
 
 static void *create_info_config(apr_pool_t * p, server_rec * s)
 {
@@ -297,7 +297,7 @@ typedef struct
     hook_get_t get;
 } hook_lookup_t;
 
-static hook_lookup_t startup_hooks[] = {
+static const hook_lookup_t startup_hooks[] = {
     {"Pre-Config", ap_hook_get_pre_config},
     {"Check Configuration", ap_hook_get_check_config},
     {"Test Configuration", ap_hook_get_test_config},
@@ -311,7 +311,7 @@ static hook_lookup_t startup_hooks[] = {
     {NULL},
 };
 
-static hook_lookup_t request_hooks[] = {
+static const hook_lookup_t request_hooks[] = {
     {"Pre-Connection", ap_hook_get_pre_connection},
     {"Create Connection", ap_hook_get_create_connection},
     {"Process Connection", ap_hook_get_process_connection},
@@ -339,7 +339,7 @@ static hook_lookup_t request_hooks[] = {
     {NULL},
 };
 
-static hook_lookup_t other_hooks[] = {
+static const hook_lookup_t other_hooks[] = {
     {"Monitor", ap_hook_get_monitor},
     {"Child Status", ap_hook_get_child_status},
     {"End Generation", ap_hook_get_end_generation},
@@ -378,7 +378,7 @@ static int module_find_hook(module * modp, hook_get_t hook_get)
 
 static void module_participate(request_rec * r,
                                module * modp,
-                               hook_lookup_t * lookup, int *comma)
+                               const hook_lookup_t *lookup, int *comma)
 {
     if (module_find_hook(modp, lookup->get)) {
         if (*comma) {
@@ -791,7 +791,7 @@ static int display_info(request_rec * r)
              "  <title>Server Information</title>\n" "</head>\n", r);
     ap_rputs("<body><h1 style=\"text-align: center\">"
              "Apache Server Information</h1>\n", r);
-    if (!r->args || strcasecmp(r->args, "list")) {
+    if (!r->args || ap_cstr_casecmp(r->args, "list")) {
         if (!r->args) {
             ap_rputs("<dl><dt><tt>Subpages:<br />", r);
             ap_rputs("<a href=\"?config\">Configuration Files</a>, "
@@ -825,19 +825,19 @@ static int display_info(request_rec * r)
             ap_rputs("</tt></dt></dl><hr />", r);
         }
 
-        if (!r->args || !strcasecmp(r->args, "server")) {
+        if (!r->args || !ap_cstr_casecmp(r->args, "server")) {
             show_server_settings(r);
         }
 
-        if (!r->args || !strcasecmp(r->args, "hooks")) {
+        if (!r->args || !ap_cstr_casecmp(r->args, "hooks")) {
             show_active_hooks(r);
         }
 
-        if (!r->args || !strcasecmp(r->args, "providers")) {
+        if (!r->args || !ap_cstr_casecmp(r->args, "providers")) {
             show_providers(r);
         }
 
-        if (r->args && 0 == strcasecmp(r->args, "config")) {
+        if (r->args && 0 == ap_cstr_casecmp(r->args, "config")) {
             ap_rputs("<dl><dt><strong>Configuration:</strong>\n", r);
             mod_info_module_cmds(r, NULL, ap_conftree, 0, 0);
             ap_rputs("</dl><hr />", r);
@@ -848,7 +848,7 @@ static int display_info(request_rec * r)
                  modules = get_sorted_modules(r->pool);
             for (i = 0; i < modules->nelts; i++) {
                 modp = APR_ARRAY_IDX(modules, i, module *);
-                if (!r->args || !strcasecmp(modp->name, r->args)) {
+                if (!r->args || !ap_cstr_casecmp(modp->name, r->args)) {
                     ap_rprintf(r,
                                "<dl><dt><a name=\"%s\"><strong>Module Name:</strong></a> "
                                "<font size=\"+1\"><tt><a href=\"?%s\">%s</a></tt></font></dt>\n",
@@ -946,7 +946,7 @@ static int display_info(request_rec * r)
                     }
                 }
             }
-            if (!modp && r->args && strcasecmp(r->args, "server")) {
+            if (!modp && r->args && ap_cstr_casecmp(r->args, "server")) {
                 ap_rputs("<p><b>No such module</b></p>\n", r);
             }
         }

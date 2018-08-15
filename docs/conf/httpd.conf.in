@@ -270,6 +270,15 @@ LogLevel warn
     Require all granted
 </Directory>
 
+<IfModule headers_module>
+    #
+    # Avoid passing HTTP_PROXY environment to CGI's on this or any proxied
+    # backend servers which have lingering "httpoxy" defects.
+    # 'Proxy' request header is undefined by the IETF, not listed by IANA
+    #
+    RequestHeader unset Proxy early
+</IfModule>
+
 <IfModule mime_module>
     #
     # TypesConfig points to the file containing the list of mappings from
@@ -396,7 +405,7 @@ LogLevel warn
 #Include @rel_sysconfdir@/extra/httpd-policy.conf
 
 # Configuration macros
-#Included @rel_sysconfdir@/extra/httpd-macro.conf
+#Include @rel_sysconfdir@/extra/httpd-macro.conf
 
 # Configure mod_proxy_html to understand HTML4/XHTML1
 <IfModule proxy_html_module>
@@ -414,18 +423,4 @@ Include @rel_sysconfdir@/extra/proxy-html.conf
 SSLRandomSeed startup builtin
 SSLRandomSeed connect builtin
 </IfModule>
-#
-# Uncomment the below to deal with user agents that deliberately
-# violate open standards by misusing DNT (DNT *must* be a specific
-# end-user choice)
-#
-#<IfModule setenvif_module>
-#BrowserMatch "MSIE 10.0;" bad_DNT
-#</IfModule>
-#<IfModule headers_module>
-#RequestHeader unset DNT env=bad_DNT
-#</IfModule>
-
-# h2/h2c (HTTP/2) connections
-#Include @rel_sysconfdir@/extra/httpd-h2.conf
 

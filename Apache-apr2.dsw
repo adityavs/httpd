@@ -87,6 +87,9 @@ Package=<4>
     Project_Dep_Name httpd
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name mod_apreq
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name ApacheMonitor
     End Project Dependency
     Begin Project Dependency
@@ -288,6 +291,9 @@ Package=<4>
     Project_Dep_Name mod_proxy_ftp
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name mod_proxy_hcheck
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name mod_proxy_http
     End Project Dependency
     Begin Project Dependency
@@ -340,6 +346,9 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mod_socache_shmcb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mod_socache_redis
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name mod_speling
@@ -456,7 +465,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_freetds"=".\srclib\apr\dbd\apr_dbd_freetds.dsp" - Package Owner=<4>
+Project: "apr_dbd_freetds"=".\srclib\apr-util\dbd\unsupported\apr_dbd_freetds.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -471,7 +480,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_odbc"=".\srclib\apr\dbd\apr_dbd_odbc.dsp" - Package Owner=<4>
+Project: "apr_dbd_odbc"=".\srclib\apr-util\dbd\apr_dbd_odbc.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -486,7 +495,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_mysql"=".\srclib\apr\dbd\apr_dbd_mysql.dsp" - Package Owner=<4>
+Project: "apr_dbd_mysql"=".\srclib\apr-util\dbd\apr_dbd_mysql.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -501,7 +510,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_oracle"=".\srclib\apr\dbd\apr_dbd_oracle.dsp" - Package Owner=<4>
+Project: "apr_dbd_oracle"=".\srclib\apr-util\dbd\apr_dbd_oracle.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -516,7 +525,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_pgsql"=".\srclib\apr\dbd\apr_dbd_pgsql.dsp" - Package Owner=<4>
+Project: "apr_dbd_pgsql"=".\srclib\apr-util\dbd\apr_dbd_pgsql.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -531,7 +540,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_sqlite2"=".\srclib\apr\dbd\apr_dbd_sqlite2.dsp" - Package Owner=<4>
+Project: "apr_dbd_sqlite2"=".\srclib\apr-util\dbd\apr_dbd_sqlite2.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -546,7 +555,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbd_sqlite3"=".\srclib\apr\dbd\apr_dbd_sqlite3.dsp" - Package Owner=<4>
+Project: "apr_dbd_sqlite3"=".\srclib\apr-util\dbd\apr_dbd_sqlite3.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -561,7 +570,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbm_db"=".\srclib\apr\dbm\apr_dbm_db.dsp" - Package Owner=<4>
+Project: "apr_dbm_db"=".\srclib\apr-util\dbm\apr_dbm_db.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -576,7 +585,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "apr_dbm_gdbm"=".\srclib\apr\dbm\apr_dbm_gdbm.dsp" - Package Owner=<4>
+Project: "apr_dbm_gdbm"=".\srclib\apr-util\dbm\apr_dbm_gdbm.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -730,6 +739,27 @@ Package=<4>
 {{{
     Begin Project Dependency
     Project_Dep_Name expat
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "libapreq"=.\libapreq.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libapriconv
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
     End Project Dependency
 }}}
 
@@ -1264,6 +1294,24 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mod_brotli"=.\modules\filters\mod_brotli.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mod_bucketeer"=.\modules\debugging\mod_bucketeer.dsp - Package Owner=<4>
 
 Package=<5>
@@ -1391,6 +1439,24 @@ Package=<4>
 ###############################################################################
 
 Project: "mod_charset_lite"=.\modules\filters\mod_charset_lite.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mod_crypto"=.\modules\filters\mod_crypto.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -1727,6 +1793,24 @@ Package=<4>
 ###############################################################################
 
 Project: "mod_filter"=.\modules\filters\mod_filter.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mod_http2"=.\modules\http2\mod_http2.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -2140,6 +2224,24 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mod_md"=.\modules\md\mod_md.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mod_mime"=.\modules\http\mod_mime.dsp - Package Owner=<4>
 
 Package=<5>
@@ -2339,6 +2441,27 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mod_proxy_hcheck"=.\modules\proxy\mod_proxy_hcheck.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mod_proxy
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mod_proxy_html"=.\modules\filters\mod_proxy_html.dsp - Package Owner=<4>
 
 Package=<5>
@@ -2378,7 +2501,52 @@ Package=<4>
 
 ###############################################################################
 
+Project: "mod_proxy_http2"=.\modules\http2\mod_proxy_http2.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mod_http2
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mod_proxy
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mod_proxy_scgi"=.\modules\proxy\mod_proxy_scgi.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name mod_proxy
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mod_proxy_uwsgi"=.\modules\proxy\mod_proxy_uwsgi.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -2760,6 +2928,24 @@ Package=<4>
 ###############################################################################
 
 Project: "mod_socache_shmcb"=.\modules\cache\mod_socache_shmcb.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name libapr
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name libhttpd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mod_socache_redis"=.\modules\cache\mod_socache_redis.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
